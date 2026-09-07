@@ -1,8 +1,9 @@
--- CSS JAVA GUI — FIXED SMOOTH STAMINA, JUMP & NOCLIP
+-- CSS JAVA GUI — FIXED JUMP & STAMINA LOGIC
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
+local ContextActionService = game:GetService("ContextActionService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -32,6 +33,7 @@ local C = {
     textFaint = Color3.fromRGB(90,65,140),
     green = Color3.fromRGB(80,255,140),
     red = Color3.fromRGB(255,80,110),
+    yellow = Color3.fromRGB(255,220,80),
     tabActive = Color3.fromRGB(35,12,75),
     tabIdle = Color3.fromRGB(16,9,38),
 }
@@ -143,7 +145,7 @@ openButton.AutoButtonColor = false
 openButton.ZIndex = 20
 openButton.Parent = screenGui
 corner(openButton,15)
-local openStroke = stroke(openButton,C.accent,1.5)
+stroke(openButton,C.accent,1.5)
 
 local openGrad = Instance.new("UIGradient")
 openGrad.Color = ColorSequence.new({
@@ -169,15 +171,6 @@ local function buildCrosshair(parent,zindex)
     corner(ring,99)
     stroke(ring,C.accentBright,2)
 
-    local innerRing = Instance.new("Frame")
-    innerRing.Size = UDim2.new(0,14,0,14)
-    innerRing.Position = UDim2.new(0.5,-7,0.5,-7)
-    innerRing.BackgroundTransparency = 1
-    innerRing.ZIndex = (zindex or 21)+1
-    innerRing.Parent = container
-    corner(innerRing,99)
-    stroke(innerRing,C.accentDim,1)
-
     local dot = Instance.new("Frame")
     dot.Size = UDim2.new(0,5,0,5)
     dot.Position = UDim2.new(0.5,-2.5,0.5,-2.5)
@@ -187,64 +180,32 @@ local function buildCrosshair(parent,zindex)
     dot.Parent = container
     corner(dot,99)
 
-    local lines = {
-        {w=2,h=7,x=-1,y=-16},
-        {w=2,h=7,x=-1,y=9},
-        {w=7,h=2,x=-16,y=-1},
-        {w=7,h=2,x=9,y=-1}
-    }
-
-    for _,ld in ipairs(lines) do
-        local l = Instance.new("Frame")
-        l.Size = UDim2.new(0,ld.w,0,ld.h)
-        l.Position = UDim2.new(0.5,ld.x,0.5,ld.y)
-        l.BackgroundColor3 = C.accentBright
-        l.BorderSizePixel = 0
-        l.ZIndex = (zindex or 21)+1
-        l.Parent = container
-        corner(l,1)
-    end
-
     return container
 end
 
 local crosshairIcon = buildCrosshair(openButton,21)
-
 local crossAngle = 0
 RunService.Heartbeat:Connect(function()
     crossAngle = (crossAngle + 0.6) % 360
-    if crosshairIcon.Parent then
-        crosshairIcon.Rotation = crossAngle
-    end
+    if crosshairIcon.Parent then crosshairIcon.Rotation = crossAngle end
 end)
 
 -- Button dragging
 local btnDrag,btnDragStart,btnStartPos,btnMoved=false,nil,nil,false
-
 openButton.InputBegan:Connect(function(inp)
     if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
-        btnDrag=true
-        btnMoved=false
-        btnDragStart=inp.Position
-        btnStartPos=openButton.Position
+        btnDrag=true; btnMoved=false; btnDragStart=inp.Position; btnStartPos=openButton.Position
     end
 end)
-
 UserInputService.InputChanged:Connect(function(inp)
     if btnDrag and (inp.UserInputType == Enum.UserInputType.MouseMovement or inp.UserInputType == Enum.UserInputType.Touch) then
         local d=inp.Position-btnDragStart
         if math.abs(d.X)>5 or math.abs(d.Y)>5 then btnMoved=true end
-        openButton.Position=UDim2.new(
-            btnStartPos.X.Scale,btnStartPos.X.Offset+d.X,
-            btnStartPos.Y.Scale,btnStartPos.Y.Offset+d.Y
-        )
+        openButton.Position=UDim2.new(btnStartPos.X.Scale,btnStartPos.X.Offset+d.X,btnStartPos.Y.Scale,btnStartPos.Y.Offset+d.Y)
     end
 end)
-
 UserInputService.InputEnded:Connect(function(inp)
-    if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
-        btnDrag=false
-    end
+    if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then btnDrag=false end
 end)
 
 -- Main window
@@ -259,8 +220,7 @@ mainFrame.ZIndex = 3
 mainFrame.ClipsDescendants = true
 mainFrame.Parent = screenGui
 corner(mainFrame,16)
-
-local mainStroke = stroke(mainFrame,C.accent,1.5)
+stroke(mainFrame,C.accent,1.5)
 
 local mainGrad = Instance.new("UIGradient")
 mainGrad.Color = ColorSequence.new({
@@ -285,19 +245,10 @@ topGrad.Rotation=90
 topGrad.Parent=topBar
 
 local divLine=newFrame(topBar,UDim2.new(1,0,0,1),UDim2.new(0,0,1,0),C.accent,0,5)
-local lineBlick=newFrame(divLine,UDim2.new(0,100,1,0),UDim2.new(-0.2,0,0,0),C.accentGlow,0.2,6)
-corner(lineBlick,4)
-
-local logoLabel=newLabel(
-    topBar,"CSS  JAVA",
-    UDim2.new(0,180,1,0),UDim2.new(0.5,-90,0,0),
-    C.text,16,Enum.Font.GothamBlack,5,Enum.TextXAlignment.Center
-)
-
-local statusDot=newLabel(topBar,"●",UDim2.new(0,12,0,14),UDim2.new(0.5,-6,1,-17),C.green,8,Enum.Font.GothamBold,5,Enum.TextXAlignment.Center)
-local statusTxt=newLabel(topBar,"ACTIVE",UDim2.new(0,60,0,14),UDim2.new(0.5,6,1,-17),C.green,8,Enum.Font.GothamBold,5,Enum.TextXAlignment.Left)
-
-newLabel(topBar,"v2.1",UDim2.new(0,40,1,0),UDim2.new(1,-90,0,0),C.textFaint,9,Enum.Font.GothamMedium,5,Enum.TextXAlignment.Right)
+newLabel(topBar,"CSS  JAVA",UDim2.new(0,180,1,0),UDim2.new(0.5,-90,0,0),C.text,16,Enum.Font.GothamBlack,5,Enum.TextXAlignment.Center)
+newLabel(topBar,"●",UDim2.new(0,12,0,14),UDim2.new(0.5,-6,1,-17),C.green,8,Enum.Font.GothamBold,5,Enum.TextXAlignment.Center)
+newLabel(topBar,"ACTIVE",UDim2.new(0,60,0,14),UDim2.new(0.5,6,1,-17),C.green,8,Enum.Font.GothamBold,5,Enum.TextXAlignment.Left)
+newLabel(topBar,"v2.3",UDim2.new(0,40,1,0),UDim2.new(1,-90,0,0),C.textFaint,9,Enum.Font.GothamMedium,5,Enum.TextXAlignment.Right)
 
 local closeBtn=Instance.new("TextButton")
 closeBtn.Size=UDim2.new(0,30,0,30)
@@ -317,9 +268,8 @@ local function makeLine45(parent,rot)
     corner(l,1)
     return l
 end
-
-local cl1=makeLine45(closeBtn,45)
-local cl2=makeLine45(closeBtn,-45)
+makeLine45(closeBtn,45)
+makeLine45(closeBtn,-45)
 
 -- Navigation
 local navPanel=Instance.new("ScrollingFrame")
@@ -361,48 +311,59 @@ local function clearContent()
 end
 
 -- =========================================================================
--- ЛОГИКА ПЛАВНЫХ ЧИТ-ФУНКЦИЙ (SPEED, STAMINA, JUMP, NOCLIP)
+-- ЛОГИКА ФУНКЦИЙ ЧИТА (ИСПРАВЛЕННЫЙ ПРЫЖОК И СТАМИНА)
 -- =========================================================================
 local speedEnabled = false
 local staminaEnabled = false
 local highJumpEnabled = false
 local noclipEnabled = false
 
+-- Улучшенный прыжок через отслеживание клавиши пробела и импульс
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not highJumpEnabled or gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.Space or input.UserInputType == Enum.UserInputType.Touch then
+        local char = player.Character
+        if char then
+            local root = char:FindFirstChild("HumanoidRootPart")
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if root and hum and hum:GetState() ~= Enum.HumanoidStateType.Freefall then
+                root.AssemblyLinearVelocity = Vector3.new(root.AssemblyLinearVelocity.X, 60, root.AssemblyLinearVelocity.Z)
+            end
+        end
+    end
+end)
+
 RunService.RenderStepped:Connect(function()
     local char = player.Character
     if not char then return end
     local hum = char:FindFirstChildOfClass("Humanoid")
 
-    -- 1. Спидхак (плавная фиксация скорости)
+    -- Спидхак
     if hum then
         if speedEnabled then
             hum.WalkSpeed = 30
         elseif hum.WalkSpeed == 30 then
             hum.WalkSpeed = 16
         end
-
-        -- 2. Высокий прыжок (плавная фиксация высоты)
-        if highJumpEnabled then
-            hum.JumpPower = 75
-        elseif hum.JumpPower == 75 then
-            hum.JumpPower = 50
-        end
     end
 
-    -- 3. Бесконечная стамина (без рывков удерживаем максимум в памяти)
+    -- Расширенная стамина (ищем во всех возможных хранилищах)
     if staminaEnabled then
         pcall(function()
+            -- 1. В персонаже и его подпапках
             for _, v in pairs(char:GetDescendants()) do
-                if v:IsA("NumberValue") or v:IsA("IntValue") then
-                    local name = v.Name:lower()
-                    if name:find("stamina") or name:find("energy") or name:find("fatigue") or name:find("power") then
-                        v.Value = 100
+                if (v:IsA("NumberValue") or v:IsA("IntValue")) then
+                    local n = v.Name:lower()
+                    if n:find("stamina") or n:find("energy") or n:find("fatigue") or n:find("power") or n:find("mana") then
+                        v.Value = v.MaxValue or 100
                     end
                 end
             end
-            if player:FindFirstChild("Data") then
-                for _, v in pairs(player.Data:GetChildren()) do
-                    if (v.Name:lower():find("stamina") or v.Name:lower():find("energy")) and (v:IsA("NumberValue") or v:IsA("IntValue")) then
+            -- 2. В объекте игрока (Player)
+            for _, v in pairs(player:GetDescendants()) do
+                if (v:IsA("NumberValue") or v:IsA("IntValue")) then
+                    local n = v.Name:lower()
+                    if n:find("stamina") or n:find("energy") or n:find("fatigue") then
                         v.Value = 100
                     end
                 end
@@ -410,7 +371,7 @@ RunService.RenderStepped:Connect(function()
         end)
     end
 
-    -- 4. Noclip (плавное отключение коллизий без телепортации)
+    -- Noclip (отлично работает)
     if noclipEnabled then
         for _, part in pairs(char:GetDescendants()) do
             if part:IsA("BasePart") then
@@ -420,15 +381,59 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Рендер вкладки "Misc"
+-- Вкладка "Главная" с живым отчетом об изменениях
+local function loadHomeTab()
+    clearContent()
+    
+    newLabel(contentPanel, "Статус модулей и обновлений (v2.3)", UDim2.new(1,-20,0,25), UDim2.new(0,12,0,10), C.text, 13, Enum.Font.GothamBold, 5, Enum.TextXAlignment.Left)
+    
+    local logFrame = newFrame(contentPanel, UDim2.new(1,-24,1,-45), UDim2.new(0,12,0,38), Color3.fromRGB(12,7,25), 0.3, 5)
+    corner(logFrame, 8)
+    stroke(logFrame, C.accentDim, 1)
+
+    local logScroll = Instance.new("ScrollingFrame")
+    logScroll.Size = UDim2.new(1,-8,1,-8)
+    logScroll.Position = UDim2.new(0,4,0,4)
+    logScroll.BackgroundTransparency = 1
+    logScroll.BorderSizePixel = 0
+    logScroll.CanvasSize = UDim2.new(0,0,0,240)
+    logScroll.ScrollBarThickness = 2
+    logScroll.ScrollBarImageColor3 = C.accent
+    logScroll.ZIndex = 6
+    logScroll.Parent = logFrame
+
+    local items = {
+        {name = "[ОБНОВЛЕНО] Высокий прыжок", status = "Переведен на импульс скорости (Velocity Y)", color = C.green},
+        {name = "[ОБНОВЛЕНО] Бесконечная стамина", status = "Поиск значений расширен по всему Player/Char", color = C.green},
+        {name = "[АКТИВНО] Спидхак (WalkSpeed 30)", status = "Работает стабильно через RenderStepped", color = C.green},
+        {name = "[АКТИВНО] Noclip (Сквозь стены)", status = "Работает отлично (CanCollide = false)", color = C.green},
+        {name = "[В РАЗРАБОТКЕ] Aimbot / SilentAim", status = "Ожидает интеграции", color = C.yellow},
+        {name = "[В РАЗРАБОТКЕ] ESP / Visuals", status = "В процессе оптимизации", color = C.yellow},
+    }
+
+    local y = 4
+    for _, it in ipairs(items) do
+        local f = newFrame(logScroll, UDim2.new(1,0,0,32), UDim2.new(0,0,0,y), Color3.fromRGB(18,10,38), 0.4, 7)
+        corner(f, 6)
+        
+        local dot = newLabel(f, "●", UDim2.new(0,20,1,0), UDim2.new(0,6,0,0), it.color, 10, Enum.Font.GothamBold, 8, Enum.TextXAlignment.Center)
+        local title = newLabel(f, it.name, UDim2.new(1,-30,0,16), UDim2.new(0,26,0,2), C.text, 10, Enum.Font.GothamBold, 8, Enum.TextXAlignment.Left)
+        local desc = newLabel(f, it.status, UDim2.new(1,-30,0,14), UDim2.new(0,26,0,16), C.textDim, 9, Enum.Font.Gotham, 8, Enum.TextXAlignment.Left)
+        
+        y = y + 36
+    end
+    logScroll.CanvasSize = UDim2.new(0,0,0,y+10)
+end
+
+-- Вкладка "Misc" с кнопками управления
 local function loadMiscTab()
     clearContent()
     
-    newLabel(contentPanel, "Дополнительные функции (Misc)", UDim2.new(1,-20,0,25), UDim2.new(0,12,0,10), C.text, 13, Enum.Font.GothamBold, 5, Enum.TextXAlignment.Left)
+    newLabel(contentPanel, "Управление функциями (Misc)", UDim2.new(1,-20,0,25), UDim2.new(0,12,0,10), C.text, 13, Enum.Font.GothamBold, 5, Enum.TextXAlignment.Left)
     
     local function createToggle(name, yPos, getState, setState)
         local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(0, 210, 0, 32)
+        btn.Size = UDim2.new(0, 220, 0, 32)
         btn.Position = UDim2.new(0, 12, 0, yPos)
         btn.BackgroundColor3 = getState() and C.accent or Color3.fromRGB(20, 12, 40)
         btn.Text = name .. (getState() and " [ON]" or " [OFF]")
@@ -464,11 +469,11 @@ end
 -- Status bar
 local statusBar=newFrame(mainFrame,UDim2.new(1,-160,0,14),UDim2.new(0,152,1,-20),C.bgPanel,0.5,4)
 corner(statusBar,5)
-local sbText=newLabel(statusBar,"CSS JAVA  |  Готов к работе  |  X Delta",UDim2.new(1,-10,1,0),UDim2.new(0,8,0,0),C.textFaint,8,Enum.Font.Gotham,5,Enum.TextXAlignment.Left)
+newLabel(statusBar,"CSS JAVA  |  Прыжок и стамина пропатчены  |  v2.3",UDim2.new(1,-10,1,0),UDim2.new(0,8,0,0),C.textFaint,8,Enum.Font.Gotham,5,Enum.TextXAlignment.Left)
 
 -- Tabs
 local tabData={
-    {name="Главная",icon="⌂",desc="Главный раздел управления"},
+    {name="Главная",icon="⌂",desc="Главный раздел", isHome=true},
     {name="Aimbot",icon="⊕",desc="Настройки точного прицела"},
     {name="Visuals",icon="◉",desc="Визуальные эффекты и ESP"},
     {name="Players",icon="⊞",desc="Список игроков на сервере"},
@@ -532,12 +537,28 @@ for idx,data in ipairs(tabData) do
         tw(iconL,{TextColor3=C.accentBright},0.2)
         tw(numL,{TextColor3=C.accent},0.2)
 
-        if data.isMisc then
+        if data.isHome then
+            loadHomeTab()
+        elseif data.isMisc then
             loadMiscTab()
         else
             loadDefaultTab(data.name, data.icon, data.desc)
         end
     end)
+
+    if idx == 1 then
+        activeTab = tabBtn
+        tabBtn.BackgroundColor3 = C.tabActive
+        tabBtn.BackgroundTransparency = 0
+        acBar.BackgroundTransparency = 0
+        acBar.BackgroundColor3 = C.accentBright
+        tabStroke.Transparency = 0
+        tabStroke.Color = C.accent
+        nameL.TextColor3 = C.text
+        iconL.TextColor3 = C.accentBright
+        numL.TextColor3 = C.accent
+        loadHomeTab()
+    end
 
     yOff=yOff+38
 end
@@ -563,23 +584,18 @@ end)
 local drag,dragStart2,startPos2=false,nil,nil
 topBar.InputBegan:Connect(function(inp)
     if inp.UserInputType==Enum.UserInputType.MouseButton1 or inp.UserInputType==Enum.UserInputType.Touch then
-        drag=true
-        dragStart2=inp.Position
-        startPos2=mainFrame.Position
+        drag=true; dragStart2=inp.Position; startPos2=mainFrame.Position
     end
 end)
-
 UserInputService.InputChanged:Connect(function(inp)
     if drag and (inp.UserInputType==Enum.UserInputType.MouseMovement or inp.UserInputType==Enum.UserInputType.Touch) then
         local d=inp.Position-dragStart2
         mainFrame.Position=UDim2.new(startPos2.X.Scale,startPos2.X.Offset+d.X,startPos2.Y.Scale,startPos2.Y.Offset+d.Y)
     end
 end)
-
 UserInputService.InputEnded:Connect(function(inp)
-    if inp.UserInputType==Enum.UserInputType.MouseButton1 or inp.UserInputType==Enum.UserInputType.Touch then
-        drag=false
-    end
+    if inp.UserInputType==Enum.UserInputType.MouseButton1 or inp.UserInputType==Enum.UserInputType.Touch then drag=false end
 end)
 
 mainFrame.Visible=false
+
