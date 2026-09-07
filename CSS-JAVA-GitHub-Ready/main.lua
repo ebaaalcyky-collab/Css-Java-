@@ -1,4 +1,4 @@
--- CSS JAVA GUI — GUI ONLY
+-- CSS JAVA GUI — FULL WORK VERSION WITH SPEEDHACK
 -- Full design based on the provided script.
 
 local Players = game:GetService("Players")
@@ -300,7 +300,7 @@ task.spawn(function()
     end
 end)
 
--- Decorative background eye placeholder.
+-- Decorative background container.
 local bgGlow = newFrame(mainFrame,UDim2.new(1,-20,1,-66),UDim2.new(0,10,0,52),Color3.fromRGB(12,5,30),0.35,3)
 corner(bgGlow,12)
 local bgGrad=Instance.new("UIGradient")
@@ -449,7 +449,7 @@ navGrad.Parent=navPanel
 newLabel(navPanel,"НАВИГАЦИЯ",UDim2.new(1,-10,0,20),UDim2.new(0,5,0,6),C.textFaint,8,Enum.Font.GothamBold,5,Enum.TextXAlignment.Center)
 newFrame(navPanel,UDim2.new(1,-20,0,1),UDim2.new(0,10,0,28),C.accentDim,0.4,5)
 
--- Content
+-- Content Container
 local contentPanel=newFrame(mainFrame,UDim2.new(1,-160,1,-56),UDim2.new(0,152,0,52),C.bgPanel,0.2,4)
 corner(contentPanel,12)
 stroke(contentPanel,C.accentDim,1)
@@ -462,18 +462,75 @@ contentGrad.Color=ColorSequence.new({
 contentGrad.Rotation=145
 contentGrad.Parent=contentPanel
 
-local contentIcon=newLabel(contentPanel,"◈",UDim2.new(1,0,0,40),UDim2.new(0,0,0.35,0),C.accentDim,28,Enum.Font.GothamBold,5,Enum.TextXAlignment.Center)
-local contentHint=newLabel(contentPanel,"Выбери вкладку",UDim2.new(1,0,0,24),UDim2.new(0,0,0.5,4),C.textFaint,12,Enum.Font.GothamMedium,5,Enum.TextXAlignment.Center)
-local contentSub=newLabel(contentPanel,"Нажми на раздел слева",UDim2.new(1,0,0,18),UDim2.new(0,0,0.5,24),Color3.fromRGB(60,40,100),9,Enum.Font.Gotham,5,Enum.TextXAlignment.Center)
+-- Функция для очистки контентной панели при смене вкладки
+local function clearContent()
+    for _, child in ipairs(contentPanel:GetChildren()) do
+        if child ~= contentGrad and child:IsA("GuiObject") then
+            child:Destroy()
+        end
+    end
+end
 
-task.spawn(function()
-    while contentIcon.Parent do
-        tw(contentIcon,{TextTransparency=0.5},1.5,Enum.EasingStyle.Sine)
-        task.wait(1.5)
-        tw(contentIcon,{TextTransparency=0},1.5,Enum.EasingStyle.Sine)
-        task.wait(1.5)
+-- =========================================================================
+-- ЛОГИКА ФУНКЦИЙ (СПИДХАК И Т.Д.)
+-- =========================================================================
+local speedEnabled = false
+
+RunService.RenderStepped:Connect(function()
+    if speedEnabled then
+        local char = player.Character
+        if char then
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if hum then
+                hum.WalkSpeed = 30
+            end
+        end
+    else
+        local char = player.Character
+        if char then
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if hum and hum.WalkSpeed == 30 then
+                hum.WalkSpeed = 16
+            end
+        end
     end
 end)
+
+-- Рендер содержимого вкладки "Misc" (куда добавлена кнопка спидхака)
+local function loadMiscTab()
+    clearContent()
+    
+    local title = newLabel(contentPanel, "Разное (Misc)", UDim2.new(1,-20,0,25), UDim2.new(0,12,0,12), C.text, 14, Enum.Font.GothamBold, 5, Enum.TextXAlignment.Left)
+    
+    -- Кнопка Спидхака
+    local speedBtn = Instance.new("TextButton")
+    speedBtn.Size = UDim2.new(0, 200, 0, 36)
+    speedBtn.Position = UDim2.new(0, 12, 0, 45)
+    speedBtn.BackgroundColor3 = speedEnabled and C.accent or Color3.fromRGB(20, 12, 40)
+    speedBtn.Text = speedEnabled + " [ON]" or "Спидхак (30) [OFF]"
+    speedBtn.TextColor3 = C.text
+    speedBtn.TextSize = 12
+    speedBtn.Font = Enum.Font.GothamMedium
+    speedBtn.ZIndex = 5
+    speedBtn.Parent = contentPanel
+    corner(speedBtn, 8)
+    stroke(speedBtn, C.accentDim, 1)
+
+    speedBtn.MouseButton1Click:Connect(function()
+        speedEnabled = not speedEnabled
+        speedBtn.BackgroundColor3 = speedEnabled and C.accent or Color3.fromRGB(20, 12, 40)
+        speedBtn.Text = speedEnabled and "Спидхак (30) [ON]" or "Спидхак (30) [OFF]"
+    end)
+end
+
+-- Стандартные заглушки для остальных вкладок
+local function loadDefaultTab(name, icon, desc)
+    clearContent()
+    
+    local contentIcon=newLabel(contentPanel,icon,UDim2.new(1,0,0,40),UDim2.new(0,0,0.3,0),C.accentDim,28,Enum.Font.GothamBold,5,Enum.TextXAlignment.Center)
+    local contentHint=newLabel(contentPanel,name,UDim2.new(1,0,0,24),UDim2.new(0,0,0.48,0),C.text,13,Enum.Font.GothamBold,5,Enum.TextXAlignment.Center)
+    local contentSub=newLabel(contentPanel,desc,UDim2.new(1,0,0,18),UDim2.new(0,0,0.56,0),C.textDim,10,Enum.Font.Gotham,5,Enum.TextXAlignment.Center)
+end
 
 -- Status bar
 local statusBar=newFrame(mainFrame,UDim2.new(1,-160,0,14),UDim2.new(0,152,1,-20),C.bgPanel,0.5,4)
@@ -493,13 +550,13 @@ end)
 
 -- Tabs
 local tabData={
-    {name="Главная",icon="⌂",desc="Главный раздел"},
-    {name="Aimbot",icon="⊕",desc="Настройки прицела"},
-    {name="Visuals",icon="◉",desc="Визуальные эффекты"},
-    {name="Players",icon="⊞",desc="Игроки"},
-    {name="Misc",icon="≡",desc="Разное"},
-    {name="Skins",icon="◈",desc="Скины"},
-    {name="Config",icon="⊙",desc="Конфигурация"},
+    {name="Главная",icon="⌂",desc="Главный раздел управления"},
+    {name="Aimbot",icon="⊕",desc="Настройки точного прицела"},
+    {name="Visuals",icon="◉",desc="Визуальные эффекты и ESP"},
+    {name="Players",icon="⊞",desc="Список игроков на сервере"},
+    {name="Misc",icon="≡",desc="Дополнительные функции и SpeedHack", isMisc=true},
+    {name="Skins",icon="◈",desc="Менеджер скинов и оружия"},
+    {name="Config",icon="⊙",desc="Сохранение и загрузка конфигов"},
 }
 
 local yOff=36
@@ -578,18 +635,12 @@ for idx,data in ipairs(tabData) do
         tw(iconL,{TextColor3=C.accentBright},0.2)
         tw(numL,{TextColor3=C.accent},0.2)
 
-        tw(contentHint,{TextTransparency=1},0.12)
-        tw(contentIcon,{TextTransparency=1},0.12)
-        tw(contentSub,{TextTransparency=1},0.12)
-        task.wait(0.14)
-
-        contentHint.Text=data.name
-        contentIcon.Text=data.icon
-        contentSub.Text=data.desc
-
-        tw(contentHint,{TextTransparency=0},0.25)
-        tw(contentIcon,{TextTransparency=0},0.25)
-        tw(contentSub,{TextTransparency=0},0.25)
+        -- Переключение содержимого в зависимости от вкладки
+        if data.isMisc then
+            loadMiscTab()
+        else
+            loadDefaultTab(data.name, data.icon, data.desc)
+        end
     end)
 
     yOff=yOff+38
@@ -706,5 +757,3 @@ end)
 mainFrame.Visible=false
 menuOpen=false
 isOpen=false
-
--- GUI-only script finished.
