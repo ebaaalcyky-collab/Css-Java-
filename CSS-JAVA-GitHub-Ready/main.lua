@@ -1,15 +1,17 @@
--- Services
+-- CSS JAVA GUI — GUI ONLY
+-- Full design based on the provided script.
+
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
 pcall(function()
-    if playerGui:FindFirstChild("CSSJavaHub") then
-        playerGui.CSSJavaHub:Destroy()
-    end
+    local old = playerGui:FindFirstChild("CSSJavaHub")
+    if old then old:Destroy() end
 end)
 
 local screenGui = Instance.new("ScreenGui")
@@ -18,495 +20,691 @@ screenGui.ResetOnSpawn = false
 screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 screenGui.Parent = playerGui
 
--- ════════════════════════════════
--- УТИЛИТЫ АНИМАЦИИ
--- ════════════════════════════════
-local function tween(obj, props, duration, style, direction)
-    local info = TweenInfo.new(
-        duration or 0.25,
-        style or Enum.EasingStyle.Quart,
-        direction or Enum.EasingDirection.Out
+local C = {
+    bg = Color3.fromRGB(5,3,12),
+    bgPanel = Color3.fromRGB(9,6,20),
+    bgNav = Color3.fromRGB(7,4,18),
+    topBar = Color3.fromRGB(11,7,26),
+    accent = Color3.fromRGB(150,65,255),
+    accentBright = Color3.fromRGB(200,120,255),
+    accentDim = Color3.fromRGB(80,30,160),
+    accentGlow = Color3.fromRGB(220,170,255),
+    text = Color3.fromRGB(230,205,255),
+    textDim = Color3.fromRGB(160,130,210),
+    textFaint = Color3.fromRGB(90,65,140),
+    green = Color3.fromRGB(80,255,140),
+    red = Color3.fromRGB(255,80,110),
+    tabActive = Color3.fromRGB(35,12,75),
+    tabIdle = Color3.fromRGB(16,9,38),
+}
+
+local function tw(obj, props, dur, style, dir)
+    local t = TweenService:Create(
+        obj,
+        TweenInfo.new(
+            dur or 0.25,
+            style or Enum.EasingStyle.Quart,
+            dir or Enum.EasingDirection.Out
+        ),
+        props
     )
-    local t = TweenService:Create(obj, info, props)
     t:Play()
     return t
 end
 
-local function fadeIn(frame, duration)
-    frame.BackgroundTransparency = 1
-    frame.Visible = true
-    tween(frame, {BackgroundTransparency = frame:GetAttribute("BaseTransparency") or 0.3}, duration or 0.3)
+local function corner(parent, radius)
+    local c = Instance.new("UICorner")
+    c.CornerRadius = UDim.new(0, radius or 8)
+    c.Parent = parent
+    return c
 end
 
--- ════════════════════════════════
--- КНОПКА ОТКРЫТИЯ
--- ════════════════════════════════
+local function stroke(parent, color, thickness, transparency)
+    local s = Instance.new("UIStroke")
+    s.Color = color or C.accent
+    s.Thickness = thickness or 1
+    s.Transparency = transparency or 0
+    s.Parent = parent
+    return s
+end
+
+local function newFrame(parent, size, pos, color, transparency, zindex)
+    local f = Instance.new("Frame")
+    f.Size = size or UDim2.new(1,0,1,0)
+    f.Position = pos or UDim2.new(0,0,0,0)
+    f.BackgroundColor3 = color or C.bgPanel
+    f.BackgroundTransparency = transparency or 0
+    f.BorderSizePixel = 0
+    f.ZIndex = zindex or 2
+    f.Parent = parent
+    return f
+end
+
+local function newLabel(parent, text, size, pos, color, textsize, font, zindex, align)
+    local l = Instance.new("TextLabel")
+    l.Size = size or UDim2.new(1,0,1,0)
+    l.Position = pos or UDim2.new(0,0,0,0)
+    l.BackgroundTransparency = 1
+    l.Text = text or ""
+    l.TextColor3 = color or C.text
+    l.TextSize = textsize or 12
+    l.Font = font or Enum.Font.GothamMedium
+    l.TextXAlignment = align or Enum.TextXAlignment.Left
+    l.ZIndex = zindex or 3
+    l.Parent = parent
+    return l
+end
+
+-- Background particles
+local particleContainer = Instance.new("Frame")
+particleContainer.Size = UDim2.new(1,0,1,0)
+particleContainer.BackgroundTransparency = 1
+particleContainer.ZIndex = 1
+particleContainer.ClipsDescendants = true
+particleContainer.Parent = screenGui
+
+local particles = {}
+for i = 1, 18 do
+    local p = Instance.new("Frame")
+    p.Size = UDim2.new(0,math.random(2,4),0,math.random(2,4))
+    p.Position = UDim2.new(math.random(),0,math.random(),0)
+    p.BackgroundColor3 = Color3.fromHSV(0.72 + math.random()*0.08, 0.6+math.random()*0.3, 1)
+    p.BackgroundTransparency = 0.3 + math.random()*0.5
+    p.BorderSizePixel = 0
+    p.ZIndex = 1
+    p.Parent = particleContainer
+    corner(p,99)
+    particles[i] = {
+        frame=p,
+        speedX=(math.random()-0.5)*0.0004,
+        speedY=-(0.00015+math.random()*0.0003)
+    }
+end
+
+local menuOpen = false
+RunService.Heartbeat:Connect(function()
+    if not menuOpen then return end
+    for _,pt in ipairs(particles) do
+        local f = pt.frame
+        local cx = f.Position.X.Scale + pt.speedX
+        local cy = f.Position.Y.Scale + pt.speedY
+        if cy < -0.02 then cy = 1.02 end
+        if cx < -0.02 then cx = 1.02 end
+        if cx > 1.02 then cx = -0.02 end
+        f.Position = UDim2.new(cx,0,cy,0)
+    end
+end)
+
+-- Open button
 local openButton = Instance.new("TextButton")
-openButton.Size = UDim2.new(0, 45, 0, 45)
-openButton.Position = UDim2.new(1, -58, 0.5, -22)
-openButton.BackgroundColor3 = Color3.fromRGB(8, 6, 18)
-openButton.Text = "⚡"
-openButton.TextColor3 = Color3.fromRGB(185, 130, 255)
-openButton.TextSize = 20
-openButton.Font = Enum.Font.GothamBold
-openButton.ZIndex = 10
+openButton.Size = UDim2.new(0,52,0,52)
+openButton.Position = UDim2.new(1,-68,0.5,-26)
+openButton.BackgroundColor3 = Color3.fromRGB(10,6,24)
+openButton.Text = ""
+openButton.AutoButtonColor = false
+openButton.ZIndex = 20
 openButton.Parent = screenGui
-Instance.new("UICorner", openButton).CornerRadius = UDim.new(0, 10)
+corner(openButton,15)
+local openStroke = stroke(openButton,C.accent,1.5)
 
-local openStroke = Instance.new("UIStroke")
-openStroke.Color = Color3.fromRGB(160, 80, 255)
-openStroke.Thickness = 1.5
-openStroke.Parent = openButton
+local openGrad = Instance.new("UIGradient")
+openGrad.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0,Color3.fromRGB(20,10,45)),
+    ColorSequenceKeypoint.new(1,Color3.fromRGB(8,4,18))
+})
+openGrad.Rotation = 135
+openGrad.Parent = openButton
 
--- Пульсация обводки кнопки
-local pulseUp = true
-task.spawn(function()
-    while openButton and openButton.Parent do
-        local target = pulseUp and 2.5 or 1.5
-        tween(openStroke, {Thickness = target}, 0.9, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
-        pulseUp = not pulseUp
-        task.wait(0.9)
-    end
-end)
+local function buildCrosshair(parent,zindex)
+    local container = Instance.new("Frame")
+    container.Size = UDim2.new(0,32,0,32)
+    container.Position = UDim2.new(0.5,-16,0.5,-16)
+    container.BackgroundTransparency = 1
+    container.ZIndex = zindex or 21
+    container.Parent = parent
 
--- Hover-эффект кнопки открытия
-openButton.MouseEnter:Connect(function()
-    tween(openButton, {BackgroundColor3 = Color3.fromRGB(30, 15, 60)}, 0.2)
-    tween(openStroke, {Color = Color3.fromRGB(210, 130, 255)}, 0.2)
-end)
-openButton.MouseLeave:Connect(function()
-    tween(openButton, {BackgroundColor3 = Color3.fromRGB(8, 6, 18)}, 0.2)
-    tween(openStroke, {Color = Color3.fromRGB(160, 80, 255)}, 0.2)
-end)
+    local ring = Instance.new("Frame")
+    ring.Size = UDim2.new(1,0,1,0)
+    ring.BackgroundTransparency = 1
+    ring.ZIndex = zindex or 21
+    ring.Parent = container
+    corner(ring,99)
+    stroke(ring,C.accentBright,2)
 
--- ════════════════════════════════
--- ГЛАВНОЕ ОКНО
--- ════════════════════════════════
-local mainFrame = Instance.new("ImageLabel")
-mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.new(0, 520, 0, 300)
-mainFrame.Position = UDim2.new(0.5, -260, 0, 55)
-mainFrame.BackgroundColor3 = Color3.fromRGB(6, 4, 14)
-mainFrame.BorderSizePixel = 0
-mainFrame.Visible = false
-mainFrame.ImageTransparency = 0.35
-mainFrame.ScaleType = Enum.ScaleType.Crop
-mainFrame.ZIndex = 2
-mainFrame.Parent = screenGui
-Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 14)
+    local innerRing = Instance.new("Frame")
+    innerRing.Size = UDim2.new(0,14,0,14)
+    innerRing.Position = UDim2.new(0.5,-7,0.5,-7)
+    innerRing.BackgroundTransparency = 1
+    innerRing.ZIndex = (zindex or 21)+1
+    innerRing.Parent = container
+    corner(innerRing,99)
+    stroke(innerRing,C.accentDim,1)
 
-local mainStroke = Instance.new("UIStroke")
-mainStroke.Color = Color3.fromRGB(140, 60, 255)
-mainStroke.Thickness = 1.5
-mainStroke.Parent = mainFrame
-
--- Анимация обводки окна (цвет переливается)
-local strokeHue = 0
-task.spawn(function()
-    while mainFrame and mainFrame.Parent do
-        strokeHue = (strokeHue + 1) % 360
-        local r, g, b = Color3.fromHSV(strokeHue/360, 0.7, 1):components()
-        -- плавный фиолетово-синий диапазон (не весь спектр)
-        local hue = 0.65 + math.sin(tick() * 0.5) * 0.08
-        mainStroke.Color = Color3.fromHSV(hue, 0.75, 1)
-        task.wait(0.05)
-    end
-end)
-
--- Загрузка фона
-local function loadGitHubBackground(imageLabel, filePath)
-    local url = string.format("https://raw.githubusercontent.com/ebaaalcyky-collab/Css-Java/main/CSS-JAVA-GitHub-Ready/%s", filePath)
-    local success, result = pcall(function() return game:HttpGet(url) end)
-    if success and result then
-        local ok = pcall(function() writefile("css_java_bg_cache.png", result) end)
-        if ok then
-            local fn = getcustomasset or getsynasset
-            if fn then imageLabel.Image = fn("css_java_bg_cache.png") end
-        end
-    end
-end
-task.spawn(function() loadGitHubBackground(mainFrame, "assets/background/eye.png") end)
-
--- ════════════════════════════════
--- ШАПКА
--- ════════════════════════════════
-local topBar = Instance.new("Frame")
-topBar.Size = UDim2.new(1, 0, 0, 44)
-topBar.BackgroundColor3 = Color3.fromRGB(10, 6, 24)
-topBar.BackgroundTransparency = 0.1
-topBar.BorderSizePixel = 0
-topBar.ZIndex = 3
-topBar.Parent = mainFrame
-Instance.new("UICorner", topBar).CornerRadius = UDim.new(0, 14)
-
-local topBarFix = Instance.new("Frame")
-topBarFix.Size = UDim2.new(1, 0, 0, 14)
-topBarFix.Position = UDim2.new(0, 0, 1, -14)
-topBarFix.BackgroundColor3 = Color3.fromRGB(10, 6, 24)
-topBarFix.BackgroundTransparency = 0.1
-topBarFix.BorderSizePixel = 0
-topBarFix.ZIndex = 3
-topBarFix.Parent = topBar
-
-local topBarLine = Instance.new("Frame")
-topBarLine.Size = UDim2.new(1, 0, 0, 1)
-topBarLine.Position = UDim2.new(0, 0, 1, 0)
-topBarLine.BackgroundColor3 = Color3.fromRGB(150, 70, 255)
-topBarLine.BorderSizePixel = 0
-topBarLine.ZIndex = 4
-topBarLine.Parent = topBar
-
--- Анимация линии (бегущий свет)
-local lineGlow = Instance.new("Frame")
-lineGlow.Size = UDim2.new(0, 80, 1, 0)
-lineGlow.Position = UDim2.new(-0.2, 0, 0, 0)
-lineGlow.BackgroundColor3 = Color3.fromRGB(220, 160, 255)
-lineGlow.BackgroundTransparency = 0.3
-lineGlow.BorderSizePixel = 0
-lineGlow.ZIndex = 5
-lineGlow.Parent = topBarLine
-Instance.new("UICorner", lineGlow).CornerRadius = UDim.new(0, 4)
-
-task.spawn(function()
-    while lineGlow and lineGlow.Parent do
-        lineGlow.Position = UDim2.new(-0.15, 0, 0, 0)
-        tween(lineGlow, {Position = UDim2.new(1.15, 0, 0, 0)}, 2.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
-        task.wait(2.5)
-    end
-end)
-
--- Точки-декор
-for i, color in ipairs({Color3.fromRGB(180,80,255), Color3.fromRGB(100,40,180), Color3.fromRGB(60,20,120)}) do
     local dot = Instance.new("Frame")
-    dot.Size = UDim2.new(0, 8, 0, 8)
-    dot.Position = UDim2.new(0, 8 + (i-1)*14, 0.5, -4)
-    dot.BackgroundColor3 = color
+    dot.Size = UDim2.new(0,5,0,5)
+    dot.Position = UDim2.new(0.5,-2.5,0.5,-2.5)
+    dot.BackgroundColor3 = C.accentBright
     dot.BorderSizePixel = 0
-    dot.ZIndex = 4
-    dot.Parent = topBar
-    Instance.new("UICorner", dot).CornerRadius = UDim.new(1, 0)
+    dot.ZIndex = (zindex or 21)+2
+    dot.Parent = container
+    corner(dot,99)
+
+    local lines = {
+        {w=2,h=7,x=-1,y=-16},
+        {w=2,h=7,x=-1,y=9},
+        {w=7,h=2,x=-16,y=-1},
+        {w=7,h=2,x=9,y=-1}
+    }
+
+    for _,ld in ipairs(lines) do
+        local l = Instance.new("Frame")
+        l.Size = UDim2.new(0,ld.w,0,ld.h)
+        l.Position = UDim2.new(0.5,ld.x,0.5,ld.y)
+        l.BackgroundColor3 = C.accentBright
+        l.BorderSizePixel = 0
+        l.ZIndex = (zindex or 21)+1
+        l.Parent = container
+        corner(l,1)
+    end
+
+    return container
 end
 
--- Логотип
-local logoLabel = Instance.new("TextLabel")
-logoLabel.Size = UDim2.new(0, 180, 1, 0)
-logoLabel.Position = UDim2.new(0.5, -90, 0, 0)
-logoLabel.BackgroundTransparency = 1
-logoLabel.Text = "CSS  JAVA"
-logoLabel.TextColor3 = Color3.fromRGB(230, 200, 255)
-logoLabel.TextSize = 16
-logoLabel.Font = Enum.Font.GothamBlack
-logoLabel.TextXAlignment = Enum.TextXAlignment.Center
-logoLabel.ZIndex = 4
-logoLabel.Parent = topBar
+local crosshairIcon = buildCrosshair(openButton,21)
 
--- Анимация цвета логотипа
+local crossAngle = 0
+RunService.Heartbeat:Connect(function()
+    crossAngle = (crossAngle + 0.6) % 360
+    if crosshairIcon.Parent then
+        crosshairIcon.Rotation = crossAngle
+    end
+end)
+
 task.spawn(function()
-    while logoLabel and logoLabel.Parent do
-        tween(logoLabel, {TextColor3 = Color3.fromRGB(200, 150, 255)}, 1.2, Enum.EasingStyle.Sine)
-        task.wait(1.2)
-        tween(logoLabel, {TextColor3 = Color3.fromRGB(255, 220, 255)}, 1.2, Enum.EasingStyle.Sine)
-        task.wait(1.2)
+    local up = true
+    while openButton.Parent do
+        tw(openStroke,{Thickness=up and 2.5 or 1.2},1.1,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut)
+        up = not up
+        task.wait(1.1)
     end
 end)
 
-local statusLabel = Instance.new("TextLabel")
-statusLabel.Size = UDim2.new(0, 180, 0, 14)
-statusLabel.Position = UDim2.new(0.5, -90, 1, -16)
-statusLabel.BackgroundTransparency = 1
-statusLabel.Text = "● ACTIVE"
-statusLabel.TextColor3 = Color3.fromRGB(100, 255, 140)
-statusLabel.TextSize = 9
-statusLabel.Font = Enum.Font.GothamMedium
-statusLabel.TextXAlignment = Enum.TextXAlignment.Center
-statusLabel.ZIndex = 4
-statusLabel.Parent = topBar
+openButton.MouseEnter:Connect(function()
+    tw(openButton,{BackgroundColor3=Color3.fromRGB(22,11,52)},0.15)
+    tw(openStroke,{Color=C.accentGlow},0.15)
+end)
 
--- Мигание статуса
-task.spawn(function()
-    while statusLabel and statusLabel.Parent do
-        tween(statusLabel, {TextTransparency = 0.6}, 0.8, Enum.EasingStyle.Sine)
-        task.wait(0.8)
-        tween(statusLabel, {TextTransparency = 0}, 0.8, Enum.EasingStyle.Sine)
-        task.wait(0.8)
+openButton.MouseLeave:Connect(function()
+    tw(openButton,{BackgroundColor3=Color3.fromRGB(10,6,24)},0.15)
+    tw(openStroke,{Color=C.accent},0.15)
+end)
+
+-- Button dragging
+local btnDrag,btnDragStart,btnStartPos,btnMoved=false,nil,nil,false
+
+openButton.InputBegan:Connect(function(inp)
+    if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
+        btnDrag=true
+        btnMoved=false
+        btnDragStart=inp.Position
+        btnStartPos=openButton.Position
     end
 end)
 
-local versionLabel = Instance.new("TextLabel")
-versionLabel.Size = UDim2.new(0, 50, 1, 0)
-versionLabel.Position = UDim2.new(1, -88, 0, 0)
-versionLabel.BackgroundTransparency = 1
-versionLabel.Text = "v2.0"
-versionLabel.TextColor3 = Color3.fromRGB(120, 70, 200)
-versionLabel.TextSize = 10
-versionLabel.Font = Enum.Font.GothamMedium
-versionLabel.TextXAlignment = Enum.TextXAlignment.Right
-versionLabel.ZIndex = 4
-versionLabel.Parent = topBar
-
-local closeButton = Instance.new("TextButton")
-closeButton.Size = UDim2.new(0, 30, 0, 30)
-closeButton.Position = UDim2.new(1, -38, 0.5, -15)
-closeButton.BackgroundColor3 = Color3.fromRGB(60, 15, 100)
-closeButton.BackgroundTransparency = 0.3
-closeButton.Text = "✕"
-closeButton.TextColor3 = Color3.fromRGB(220, 160, 255)
-closeButton.TextSize = 14
-closeButton.Font = Enum.Font.GothamBold
-closeButton.ZIndex = 5
-closeButton.Parent = topBar
-Instance.new("UICorner", closeButton).CornerRadius = UDim.new(0, 8)
-
-local closeStroke = Instance.new("UIStroke")
-closeStroke.Color = Color3.fromRGB(140, 60, 220)
-closeStroke.Thickness = 1
-closeStroke.Parent = closeButton
-
-closeButton.MouseEnter:Connect(function()
-    tween(closeButton, {BackgroundColor3 = Color3.fromRGB(120, 20, 60), BackgroundTransparency = 0}, 0.15)
-    tween(closeButton, {TextColor3 = Color3.fromRGB(255, 100, 130)}, 0.15)
-end)
-closeButton.MouseLeave:Connect(function()
-    tween(closeButton, {BackgroundColor3 = Color3.fromRGB(60, 15, 100), BackgroundTransparency = 0.3}, 0.15)
-    tween(closeButton, {TextColor3 = Color3.fromRGB(220, 160, 255)}, 0.15)
-end)
-
--- ════════════════════════════════
--- НАВИГАЦИЯ
--- ════════════════════════════════
-local navPanel = Instance.new("ScrollingFrame")
-navPanel.Size = UDim2.new(0, 135, 1, -54)
-navPanel.Position = UDim2.new(0, 8, 0, 50)
-navPanel.BackgroundColor3 = Color3.fromRGB(8, 5, 20)
-navPanel.BackgroundTransparency = 0.3
-navPanel.BorderSizePixel = 0
-navPanel.CanvasSize = UDim2.new(0, 0, 0, 0)
-navPanel.ScrollBarThickness = 2
-navPanel.ScrollBarImageColor3 = Color3.fromRGB(140, 60, 255)
-navPanel.ZIndex = 3
-navPanel.Parent = mainFrame
-Instance.new("UICorner", navPanel).CornerRadius = UDim.new(0, 10)
-
-local navStroke = Instance.new("UIStroke")
-navStroke.Color = Color3.fromRGB(90, 35, 170)
-navStroke.Thickness = 1
-navStroke.Parent = navPanel
-
-local navHeader = Instance.new("TextLabel")
-navHeader.Size = UDim2.new(1, 0, 0, 22)
-navHeader.Position = UDim2.new(0, 0, 0, 4)
-navHeader.BackgroundTransparency = 1
-navHeader.Text = "МЕНЮ"
-navHeader.TextColor3 = Color3.fromRGB(120, 70, 200)
-navHeader.TextSize = 9
-navHeader.Font = Enum.Font.GothamBold
-navHeader.TextXAlignment = Enum.TextXAlignment.Center
-navHeader.ZIndex = 4
-navHeader.Parent = navPanel
-
--- ════════════════════════════════
--- КОНТЕНТ
--- ════════════════════════════════
-local contentArea = Instance.new("Frame")
-contentArea.Size = UDim2.new(1, -158, 1, -54)
-contentArea.Position = UDim2.new(0, 150, 0, 50)
-contentArea.BackgroundColor3 = Color3.fromRGB(8, 5, 20)
-contentArea.BackgroundTransparency = 0.3
-contentArea.BorderSizePixel = 0
-contentArea.ZIndex = 3
-contentArea.Parent = mainFrame
-Instance.new("UICorner", contentArea).CornerRadius = UDim.new(0, 10)
-
-local contentStroke = Instance.new("UIStroke")
-contentStroke.Color = Color3.fromRGB(90, 35, 170)
-contentStroke.Thickness = 1
-contentStroke.Parent = contentArea
-
-local contentHint = Instance.new("TextLabel")
-contentHint.Size = UDim2.new(1, 0, 1, 0)
-contentHint.BackgroundTransparency = 1
-contentHint.Text = "Выбери вкладку"
-contentHint.TextColor3 = Color3.fromRGB(80, 50, 130)
-contentHint.TextSize = 13
-contentHint.Font = Enum.Font.GothamMedium
-contentHint.ZIndex = 4
-contentHint.Parent = contentArea
-
--- ════════════════════════════════
--- ВКЛАДКИ
--- ════════════════════════════════
-local tabIcons = {
-    ["Главная"] = "★", ["Aimbot"] = "◎", ["Visuals"] = "◈",
-    ["Players"] = "◉", ["Misc"] = "◆", ["Skins"] = "◇", ["Config"] = "▣",
-}
-local tabs = {"Главная", "Aimbot", "Visuals", "Players", "Misc", "Skins", "Config"}
-local yOffset = 28
-local allTabs = {}
-
-for i, tabName in ipairs(tabs) do
-    local tabBtn = Instance.new("TextButton")
-    tabBtn.Size = UDim2.new(1, -14, 0, 30)
-    tabBtn.Position = UDim2.new(0, 7, 0, yOffset)
-    tabBtn.BackgroundColor3 = Color3.fromRGB(18, 10, 40)
-    tabBtn.BackgroundTransparency = 0.3
-    tabBtn.Text = ""
-    tabBtn.ZIndex = 4
-    tabBtn.Parent = navPanel
-    Instance.new("UICorner", tabBtn).CornerRadius = UDim.new(0, 7)
-
-    local btnStroke = Instance.new("UIStroke")
-    btnStroke.Color = Color3.fromRGB(80, 30, 160)
-    btnStroke.Thickness = 1
-    btnStroke.Transparency = 0.5
-    btnStroke.Parent = tabBtn
-
-    local tabBar = Instance.new("Frame")
-    tabBar.Size = UDim2.new(0, 3, 0, 14)
-    tabBar.Position = UDim2.new(0, 4, 0.5, -7)
-    tabBar.BackgroundColor3 = Color3.fromRGB(160, 80, 255)
-    tabBar.BackgroundTransparency = 0.6
-    tabBar.BorderSizePixel = 0
-    tabBar.ZIndex = 5
-    tabBar.Parent = tabBtn
-    Instance.new("UICorner", tabBar).CornerRadius = UDim.new(0, 2)
-
-    local iconLbl = Instance.new("TextLabel")
-    iconLbl.Size = UDim2.new(0, 18, 1, 0)
-    iconLbl.Position = UDim2.new(0, 12, 0, 0)
-    iconLbl.BackgroundTransparency = 1
-    iconLbl.Text = tabIcons[tabName] or "•"
-    iconLbl.TextColor3 = Color3.fromRGB(160, 100, 240)
-    iconLbl.TextSize = 11
-    iconLbl.Font = Enum.Font.Gotham
-    iconLbl.ZIndex = 5
-    iconLbl.Parent = tabBtn
-
-    local nameLbl = Instance.new("TextLabel")
-    nameLbl.Size = UDim2.new(1, -34, 1, 0)
-    nameLbl.Position = UDim2.new(0, 32, 0, 0)
-    nameLbl.BackgroundTransparency = 1
-    nameLbl.Text = tabName
-    nameLbl.TextColor3 = Color3.fromRGB(180, 150, 220)
-    nameLbl.TextSize = 11
-    nameLbl.Font = Enum.Font.GothamMedium
-    nameLbl.TextXAlignment = Enum.TextXAlignment.Left
-    nameLbl.ZIndex = 5
-    nameLbl.Parent = tabBtn
-
-    table.insert(allTabs, {btn=tabBtn, bar=tabBar, stroke=btnStroke, lbl=nameLbl, icon=iconLbl})
-
-    -- Hover
-    tabBtn.MouseEnter:Connect(function()
-        if tabBtn.BackgroundTransparency > 0.1 then
-            tween(tabBtn, {BackgroundTransparency = 0.15}, 0.15)
-            tween(nameLbl, {TextColor3 = Color3.fromRGB(210, 180, 255)}, 0.15)
-        end
-    end)
-    tabBtn.MouseLeave:Connect(function()
-        if tabBtn.BackgroundTransparency < 0.2 and tabBtn.BackgroundTransparency > 0.05 then
-            tween(tabBtn, {BackgroundTransparency = 0.3}, 0.15)
-            tween(nameLbl, {TextColor3 = Color3.fromRGB(180, 150, 220)}, 0.15)
-        end
-    end)
-
-    tabBtn.MouseButton1Click:Connect(function()
-        -- Анимация нажатия (сжатие)
-        tween(tabBtn, {Size = UDim2.new(1, -18, 0, 27)}, 0.08, Enum.EasingStyle.Back)
-        task.wait(0.08)
-        tween(tabBtn, {Size = UDim2.new(1, -14, 0, 30)}, 0.15, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-
-        -- Сброс всех вкладок
-        for _, t in ipairs(allTabs) do
-            tween(t.btn, {BackgroundTransparency = 0.3, BackgroundColor3 = Color3.fromRGB(18, 10, 40)}, 0.2)
-            tween(t.bar, {BackgroundTransparency = 0.6}, 0.2)
-            tween(t.stroke, {Transparency = 0.5}, 0.2)
-            tween(t.lbl, {TextColor3 = Color3.fromRGB(180, 150, 220)}, 0.2)
-            tween(t.icon, {TextColor3 = Color3.fromRGB(160, 100, 240)}, 0.2)
-        end
-
-        -- Подсветка активной
-        tween(tabBtn, {BackgroundTransparency = 0.05, BackgroundColor3 = Color3.fromRGB(40, 15, 80)}, 0.2)
-        tween(tabBar, {BackgroundTransparency = 0}, 0.2)
-        tween(btnStroke, {Transparency = 0, Color = Color3.fromRGB(160, 80, 255)}, 0.2)
-        tween(nameLbl, {TextColor3 = Color3.fromRGB(235, 205, 255)}, 0.2)
-        tween(iconLbl, {TextColor3 = Color3.fromRGB(200, 140, 255)}, 0.2)
-
-        -- Fade контент
-        contentHint.TextTransparency = 1
-        contentHint.Text = tabName
-        tween(contentHint, {TextTransparency = 0}, 0.3)
-
-        print("Вкладка: " .. tabName)
-    end)
-
-    yOffset = yOffset + 36
-end
-navPanel.CanvasSize = UDim2.new(0, 0, 0, yOffset + 8)
-
--- ════════════════════════════════
--- АНИМАЦИЯ ОТКРЫТИЯ / ЗАКРЫТИЯ
--- ════════════════════════════════
-local isOpen = false
-
-local function openMenu()
-    isOpen = true
-    mainFrame.Visible = true
-    -- Начальное состояние
-    mainFrame.Position = UDim2.new(0.5, -260, 0, 30)
-    mainFrame.BackgroundTransparency = 1
-    -- Влетает сверху + появляется
-    tween(mainFrame, {
-        Position = UDim2.new(0.5, -260, 0, 55),
-        BackgroundTransparency = 0
-    }, 0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-    tween(mainStroke, {Thickness = 1.5}, 0.35)
-    openButton.Text = "⨯"
-end
-
-local function closeMenu()
-    isOpen = false
-    -- Улетает вверх + исчезает
-    tween(mainFrame, {
-        Position = UDim2.new(0.5, -260, 0, 20),
-        BackgroundTransparency = 1
-    }, 0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
-    task.wait(0.25)
-    mainFrame.Visible = false
-    openButton.Text = "⚡"
-end
-
-openButton.MouseButton1Click:Connect(function()
-    if isOpen then closeMenu() else openMenu() end
-end)
-
-closeButton.MouseButton1Click:Connect(function()
-    closeMenu()
-end)
-
--- ════════════════════════════════
--- ПЕРЕТАСКИВАНИЕ
--- ════════════════════════════════
-local dragging, dragStart, startPos
-topBar.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = input.Position
-        startPos = mainFrame.Position
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-        local delta = input.Position - dragStart
-        mainFrame.Position = UDim2.new(
-            startPos.X.Scale, startPos.X.Offset + delta.X,
-            startPos.Y.Scale, startPos.Y.Offset + delta.Y
+UserInputService.InputChanged:Connect(function(inp)
+    if btnDrag and (inp.UserInputType == Enum.UserInputType.MouseMovement or inp.UserInputType == Enum.UserInputType.Touch) then
+        local d=inp.Position-btnDragStart
+        if math.abs(d.X)>5 or math.abs(d.Y)>5 then btnMoved=true end
+        openButton.Position=UDim2.new(
+            btnStartPos.X.Scale,btnStartPos.X.Offset+d.X,
+            btnStartPos.Y.Scale,btnStartPos.Y.Offset+d.Y
         )
     end
 end)
 
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = false
+UserInputService.InputEnded:Connect(function(inp)
+    if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
+        btnDrag=false
     end
 end)
+
+-- Main window
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0,520,0,305)
+mainFrame.Position = UDim2.new(0.5,-260,0,58)
+mainFrame.BackgroundColor3 = C.bg
+mainFrame.BorderSizePixel = 0
+mainFrame.Visible = false
+mainFrame.ZIndex = 3
+mainFrame.ClipsDescendants = true
+mainFrame.Parent = screenGui
+corner(mainFrame,16)
+
+local mainStroke = stroke(mainFrame,C.accent,1.5)
+
+local mainGrad = Instance.new("UIGradient")
+mainGrad.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0,Color3.fromRGB(10,6,24)),
+    ColorSequenceKeypoint.new(0.5,Color3.fromRGB(6,3,14)),
+    ColorSequenceKeypoint.new(1,Color3.fromRGB(12,5,22))
+})
+mainGrad.Rotation=120
+mainGrad.Parent=mainFrame
+
+task.spawn(function()
+    while mainFrame.Parent do
+        local h=0.65+math.sin(os.clock()*0.4)*0.09
+        mainStroke.Color=Color3.fromHSV(h,0.78,1)
+        task.wait(0.04)
+    end
+end)
+
+-- Decorative background eye placeholder.
+local bgGlow = newFrame(mainFrame,UDim2.new(1,-20,1,-66),UDim2.new(0,10,0,52),Color3.fromRGB(12,5,30),0.35,3)
+corner(bgGlow,12)
+local bgGrad=Instance.new("UIGradient")
+bgGrad.Color=ColorSequence.new({
+    ColorSequenceKeypoint.new(0,Color3.fromRGB(35,10,70)),
+    ColorSequenceKeypoint.new(0.5,Color3.fromRGB(8,3,18)),
+    ColorSequenceKeypoint.new(1,Color3.fromRGB(35,10,70))
+})
+bgGrad.Rotation=120
+bgGrad.Parent=bgGlow
+
+-- Header
+local topBar=newFrame(mainFrame,UDim2.new(1,0,0,46),UDim2.new(0,0,0,0),C.topBar,0.05,4)
+corner(topBar,16)
+local topFix=newFrame(topBar,UDim2.new(1,0,0,16),UDim2.new(0,0,1,-16),C.topBar,0.05,4)
+
+local topGrad=Instance.new("UIGradient")
+topGrad.Color=ColorSequence.new({
+    ColorSequenceKeypoint.new(0,Color3.fromRGB(18,10,42)),
+    ColorSequenceKeypoint.new(1,Color3.fromRGB(8,5,20))
+})
+topGrad.Rotation=90
+topGrad.Parent=topBar
+
+local divLine=newFrame(topBar,UDim2.new(1,0,0,1),UDim2.new(0,0,1,0),C.accent,0,5)
+local lineBlick=newFrame(divLine,UDim2.new(0,100,1,0),UDim2.new(-0.2,0,0,0),C.accentGlow,0.2,6)
+corner(lineBlick,4)
+
+task.spawn(function()
+    while divLine.Parent do
+        lineBlick.Position=UDim2.new(-0.2,0,0,0)
+        tw(lineBlick,{Position=UDim2.new(1.2,0,0,0)},2.4,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut)
+        task.wait(3.2)
+    end
+end)
+
+local dotColors={
+    Color3.fromRGB(255,90,90),
+    Color3.fromRGB(255,200,60),
+    Color3.fromRGB(80,220,100)
+}
+
+for i,col in ipairs(dotColors) do
+    local d=newFrame(topBar,UDim2.new(0,9,0,9),UDim2.new(0,10+(i-1)*16,0.5,-4),col,0,5)
+    corner(d,99)
+    local dotBtn=Instance.new("TextButton")
+    dotBtn.Size=UDim2.new(1,0,1,0)
+    dotBtn.BackgroundTransparency=1
+    dotBtn.Text=""
+    dotBtn.ZIndex=6
+    dotBtn.Parent=d
+    dotBtn.MouseEnter:Connect(function()
+        tw(d,{BackgroundColor3=Color3.fromRGB(255,255,255)},0.1)
+    end)
+    dotBtn.MouseLeave:Connect(function()
+        tw(d,{BackgroundColor3=col},0.2)
+    end)
+end
+
+local logoLabel=newLabel(
+    topBar,"CSS  JAVA",
+    UDim2.new(0,180,1,0),UDim2.new(0.5,-90,0,0),
+    C.text,16,Enum.Font.GothamBlack,5,Enum.TextXAlignment.Center
+)
+
+task.spawn(function()
+    while logoLabel.Parent do
+        tw(logoLabel,{TextColor3=Color3.fromRGB(200,150,255)},1.4,Enum.EasingStyle.Sine)
+        task.wait(1.4)
+        tw(logoLabel,{TextColor3=Color3.fromRGB(255,225,255)},1.4,Enum.EasingStyle.Sine)
+        task.wait(1.4)
+    end
+end)
+
+local statusDot=newLabel(topBar,"●",UDim2.new(0,12,0,14),UDim2.new(0.5,-6,1,-17),C.green,8,Enum.Font.GothamBold,5,Enum.TextXAlignment.Center)
+local statusTxt=newLabel(topBar,"ACTIVE",UDim2.new(0,60,0,14),UDim2.new(0.5,6,1,-17),C.green,8,Enum.Font.GothamBold,5,Enum.TextXAlignment.Left)
+
+task.spawn(function()
+    while statusDot.Parent do
+        tw(statusDot,{TextTransparency=0.7},0.9,Enum.EasingStyle.Sine)
+        task.wait(0.9)
+        tw(statusDot,{TextTransparency=0},0.9,Enum.EasingStyle.Sine)
+        task.wait(0.9)
+    end
+end)
+
+newLabel(topBar,"v2.0",UDim2.new(0,40,1,0),UDim2.new(1,-90,0,0),C.textFaint,9,Enum.Font.GothamMedium,5,Enum.TextXAlignment.Right)
+
+local closeBtn=Instance.new("TextButton")
+closeBtn.Size=UDim2.new(0,30,0,30)
+closeBtn.Position=UDim2.new(1,-40,0.5,-15)
+closeBtn.BackgroundColor3=Color3.fromRGB(55,12,90)
+closeBtn.BackgroundTransparency=0.3
+closeBtn.Text=""
+closeBtn.AutoButtonColor=false
+closeBtn.ZIndex=6
+closeBtn.Parent=topBar
+corner(closeBtn,9)
+stroke(closeBtn,C.accentDim,1)
+
+local function makeLine45(parent,rot)
+    local l=newFrame(parent,UDim2.new(0,15,0,2),UDim2.new(0.5,-7.5,0.5,-1),Color3.fromRGB(210,150,255),0,7)
+    l.Rotation=rot
+    corner(l,1)
+    return l
+end
+
+local cl1=makeLine45(closeBtn,45)
+local cl2=makeLine45(closeBtn,-45)
+
+closeBtn.MouseEnter:Connect(function()
+    tw(closeBtn,{BackgroundColor3=Color3.fromRGB(140,18,55),BackgroundTransparency=0},0.15)
+    tw(cl1,{BackgroundColor3=C.red},0.15)
+    tw(cl2,{BackgroundColor3=C.red},0.15)
+end)
+
+closeBtn.MouseLeave:Connect(function()
+    tw(closeBtn,{BackgroundColor3=Color3.fromRGB(55,12,90),BackgroundTransparency=0.3},0.15)
+    tw(cl1,{BackgroundColor3=Color3.fromRGB(210,150,255)},0.15)
+    tw(cl2,{BackgroundColor3=Color3.fromRGB(210,150,255)},0.15)
+end)
+
+-- Navigation
+local navPanel=Instance.new("ScrollingFrame")
+navPanel.Size=UDim2.new(0,138,1,-56)
+navPanel.Position=UDim2.new(0,8,0,52)
+navPanel.BackgroundColor3=C.bgNav
+navPanel.BackgroundTransparency=0.25
+navPanel.BorderSizePixel=0
+navPanel.CanvasSize=UDim2.new(0,0,0,0)
+navPanel.ScrollBarThickness=2
+navPanel.ScrollBarImageColor3=C.accent
+navPanel.ZIndex=4
+navPanel.Parent=mainFrame
+corner(navPanel,12)
+stroke(navPanel,C.accentDim,1)
+
+local navGrad=Instance.new("UIGradient")
+navGrad.Color=ColorSequence.new({
+    ColorSequenceKeypoint.new(0,Color3.fromRGB(14,8,34)),
+    ColorSequenceKeypoint.new(1,Color3.fromRGB(7,4,18))
+})
+navGrad.Rotation=160
+navGrad.Parent=navPanel
+
+newLabel(navPanel,"НАВИГАЦИЯ",UDim2.new(1,-10,0,20),UDim2.new(0,5,0,6),C.textFaint,8,Enum.Font.GothamBold,5,Enum.TextXAlignment.Center)
+newFrame(navPanel,UDim2.new(1,-20,0,1),UDim2.new(0,10,0,28),C.accentDim,0.4,5)
+
+-- Content
+local contentPanel=newFrame(mainFrame,UDim2.new(1,-160,1,-56),UDim2.new(0,152,0,52),C.bgPanel,0.2,4)
+corner(contentPanel,12)
+stroke(contentPanel,C.accentDim,1)
+
+local contentGrad=Instance.new("UIGradient")
+contentGrad.Color=ColorSequence.new({
+    ColorSequenceKeypoint.new(0,Color3.fromRGB(12,7,28)),
+    ColorSequenceKeypoint.new(1,Color3.fromRGB(7,4,18))
+})
+contentGrad.Rotation=145
+contentGrad.Parent=contentPanel
+
+local contentIcon=newLabel(contentPanel,"◈",UDim2.new(1,0,0,40),UDim2.new(0,0,0.35,0),C.accentDim,28,Enum.Font.GothamBold,5,Enum.TextXAlignment.Center)
+local contentHint=newLabel(contentPanel,"Выбери вкладку",UDim2.new(1,0,0,24),UDim2.new(0,0,0.5,4),C.textFaint,12,Enum.Font.GothamMedium,5,Enum.TextXAlignment.Center)
+local contentSub=newLabel(contentPanel,"Нажми на раздел слева",UDim2.new(1,0,0,18),UDim2.new(0,0,0.5,24),Color3.fromRGB(60,40,100),9,Enum.Font.Gotham,5,Enum.TextXAlignment.Center)
+
+task.spawn(function()
+    while contentIcon.Parent do
+        tw(contentIcon,{TextTransparency=0.5},1.5,Enum.EasingStyle.Sine)
+        task.wait(1.5)
+        tw(contentIcon,{TextTransparency=0},1.5,Enum.EasingStyle.Sine)
+        task.wait(1.5)
+    end
+end)
+
+-- Status bar
+local statusBar=newFrame(mainFrame,UDim2.new(1,-160,0,14),UDim2.new(0,152,1,-20),C.bgPanel,0.5,4)
+corner(statusBar,5)
+
+local sbText=newLabel(statusBar,"CSS JAVA  |  Готов к работе  |  X Delta",UDim2.new(1,-10,1,0),UDim2.new(0,8,0,0),C.textFaint,8,Enum.Font.Gotham,5,Enum.TextXAlignment.Left)
+
+task.spawn(function()
+    local dots={"",".","..","..."}
+    local i=1
+    while sbText.Parent do
+        sbText.Text=("CSS JAVA  |  Готов к работе%s  |  X Delta"):format(dots[i])
+        i=i%#dots+1
+        task.wait(0.5)
+    end
+end)
+
+-- Tabs
+local tabData={
+    {name="Главная",icon="⌂",desc="Главный раздел"},
+    {name="Aimbot",icon="⊕",desc="Настройки прицела"},
+    {name="Visuals",icon="◉",desc="Визуальные эффекты"},
+    {name="Players",icon="⊞",desc="Игроки"},
+    {name="Misc",icon="≡",desc="Разное"},
+    {name="Skins",icon="◈",desc="Скины"},
+    {name="Config",icon="⊙",desc="Конфигурация"},
+}
+
+local yOff=36
+local allTabs={}
+local activeTab=nil
+
+for idx,data in ipairs(tabData) do
+    local tabBtn=Instance.new("TextButton")
+    tabBtn.Size=UDim2.new(1,-14,0,32)
+    tabBtn.Position=UDim2.new(0,7,0,yOff)
+    tabBtn.BackgroundColor3=C.tabIdle
+    tabBtn.BackgroundTransparency=0.25
+    tabBtn.Text=""
+    tabBtn.AutoButtonColor=false
+    tabBtn.ZIndex=5
+    tabBtn.Parent=navPanel
+    corner(tabBtn,9)
+
+    local tabStroke=stroke(tabBtn,C.accentDim,1,0.6)
+
+    local tbGrad=Instance.new("UIGradient")
+    tbGrad.Color=ColorSequence.new({
+        ColorSequenceKeypoint.new(0,Color3.fromRGB(28,14,60)),
+        ColorSequenceKeypoint.new(1,Color3.fromRGB(14,7,32))
+    })
+    tbGrad.Rotation=90
+    tbGrad.Parent=tabBtn
+
+    local acBar=newFrame(tabBtn,UDim2.new(0,3,0,16),UDim2.new(0,4,0.5,-8),C.accent,0.6,6)
+    corner(acBar,2)
+
+    local iconL=newLabel(tabBtn,data.icon,UDim2.new(0,22,1,0),UDim2.new(0,11,0,0),C.accentDim,14,Enum.Font.GothamBold,6,Enum.TextXAlignment.Center)
+    local nameL=newLabel(tabBtn,data.name,UDim2.new(1,-38,1,0),UDim2.new(0,36,0,0),C.textDim,11,Enum.Font.GothamMedium,6,Enum.TextXAlignment.Left)
+    local numL=newLabel(tabBtn,("0%d"):format(idx),UDim2.new(0,20,1,0),UDim2.new(1,-22,0,0),C.textFaint,8,Enum.Font.GothamMedium,6,Enum.TextXAlignment.Right)
+
+    local tabInfo={btn=tabBtn,bar=acBar,stroke=tabStroke,lbl=nameL,icon=iconL,num=numL}
+    table.insert(allTabs,tabInfo)
+
+    tabBtn.MouseEnter:Connect(function()
+        if tabBtn~=activeTab then
+            tw(tabBtn,{BackgroundTransparency=0.1},0.15)
+            tw(nameL,{TextColor3=C.text},0.15)
+            tw(iconL,{TextColor3=C.accentBright},0.15)
+        end
+    end)
+
+    tabBtn.MouseLeave:Connect(function()
+        if tabBtn~=activeTab then
+            tw(tabBtn,{BackgroundTransparency=0.25},0.15)
+            tw(nameL,{TextColor3=C.textDim},0.15)
+            tw(iconL,{TextColor3=C.accentDim},0.15)
+        end
+    end)
+
+    tabBtn.MouseButton1Click:Connect(function()
+        if activeTab==tabBtn then return end
+        activeTab=tabBtn
+
+        tw(tabBtn,{Size=UDim2.new(1,-18,0,28)},0.07,Enum.EasingStyle.Back)
+        task.wait(0.07)
+        tw(tabBtn,{Size=UDim2.new(1,-14,0,32)},0.2,Enum.EasingStyle.Back,Enum.EasingDirection.Out)
+
+        for _,t in ipairs(allTabs) do
+            tw(t.btn,{BackgroundColor3=C.tabIdle,BackgroundTransparency=0.25},0.2)
+            tw(t.bar,{BackgroundTransparency=0.6,BackgroundColor3=C.accent},0.2)
+            tw(t.stroke,{Transparency=0.6,Color=C.accentDim},0.2)
+            tw(t.lbl,{TextColor3=C.textDim},0.2)
+            tw(t.icon,{TextColor3=C.accentDim},0.2)
+            tw(t.num,{TextColor3=C.textFaint},0.2)
+        end
+
+        tw(tabBtn,{BackgroundColor3=C.tabActive,BackgroundTransparency=0},0.2)
+        tw(acBar,{BackgroundTransparency=0,BackgroundColor3=C.accentBright},0.2)
+        tw(tabStroke,{Transparency=0,Color=C.accent},0.2)
+        tw(nameL,{TextColor3=C.text},0.2)
+        tw(iconL,{TextColor3=C.accentBright},0.2)
+        tw(numL,{TextColor3=C.accent},0.2)
+
+        tw(contentHint,{TextTransparency=1},0.12)
+        tw(contentIcon,{TextTransparency=1},0.12)
+        tw(contentSub,{TextTransparency=1},0.12)
+        task.wait(0.14)
+
+        contentHint.Text=data.name
+        contentIcon.Text=data.icon
+        contentSub.Text=data.desc
+
+        tw(contentHint,{TextTransparency=0},0.25)
+        tw(contentIcon,{TextTransparency=0},0.25)
+        tw(contentSub,{TextTransparency=0},0.25)
+    end)
+
+    yOff=yOff+38
+end
+
+navPanel.CanvasSize=UDim2.new(0,0,0,yOff+10)
+
+-- Decorative corners
+local function cornerDeco(parent,xScale,yScale,xOff,yOff2,rot)
+    local c=Instance.new("Frame")
+    c.Size=UDim2.new(0,16,0,16)
+    c.Position=UDim2.new(xScale,xOff,yScale,yOff2)
+    c.BackgroundTransparency=1
+    c.ZIndex=8
+    c.Rotation=rot
+    c.Parent=parent
+
+    local h=newFrame(c,UDim2.new(0,14,0,1.5),UDim2.new(0,0,0,0),C.accent,0,9)
+    local v=newFrame(c,UDim2.new(0,1.5,0,14),UDim2.new(0,0,0,0),C.accent,0,9)
+    corner(h,1)
+    corner(v,1)
+end
+
+cornerDeco(mainFrame,0,0,6,6,0)
+cornerDeco(mainFrame,1,0,-22,6,90)
+cornerDeco(mainFrame,0,1,6,-22,-90)
+cornerDeco(mainFrame,1,1,-22,-22,180)
+
+-- Open / close animation
+local isOpen=false
+
+local function openMenu()
+    if isOpen then return end
+    isOpen=true
+    menuOpen=true
+    mainFrame.Visible=true
+    mainFrame.Position=UDim2.new(0.5,-260,0,28)
+    mainFrame.BackgroundTransparency=1
+    mainFrame.Size=UDim2.new(0,500,0,295)
+
+    tw(mainFrame,{
+        Position=UDim2.new(0.5,-260,0,58),
+        BackgroundTransparency=0,
+        Size=UDim2.new(0,520,0,305)
+    },0.38,Enum.EasingStyle.Back,Enum.EasingDirection.Out)
+
+    tw(crosshairIcon,{Size=UDim2.new(0,22,0,22)},0.2)
+    tw(openStroke,{Color=C.red},0.3)
+end
+
+local function closeMenu()
+    if not isOpen then return end
+    isOpen=false
+    menuOpen=false
+
+    tw(mainFrame,{
+        Position=UDim2.new(0.5,-260,0,22),
+        BackgroundTransparency=1,
+        Size=UDim2.new(0,500,0,290)
+    },0.25,Enum.EasingStyle.Quart,Enum.EasingDirection.In)
+
+    tw(crosshairIcon,{Size=UDim2.new(0,32,0,32)},0.2)
+    tw(openStroke,{Color=C.accent},0.3)
+
+    task.delay(0.27,function()
+        if not isOpen then
+            mainFrame.Visible=false
+        end
+    end)
+end
+
+openButton.MouseButton1Click:Connect(function()
+    if btnMoved then
+        btnMoved=false
+        return
+    end
+    if isOpen then
+        closeMenu()
+    else
+        openMenu()
+    end
+end)
+
+closeBtn.MouseButton1Click:Connect(closeMenu)
+
+-- Window dragging
+local drag,dragStart2,startPos2=false,nil,nil
+
+topBar.InputBegan:Connect(function(inp)
+    if inp.UserInputType==Enum.UserInputType.MouseButton1 or inp.UserInputType==Enum.UserInputType.Touch then
+        drag=true
+        dragStart2=inp.Position
+        startPos2=mainFrame.Position
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(inp)
+    if drag and (inp.UserInputType==Enum.UserInputType.MouseMovement or inp.UserInputType==Enum.UserInputType.Touch) then
+        local d=inp.Position-dragStart2
+        mainFrame.Position=UDim2.new(
+            startPos2.X.Scale,startPos2.X.Offset+d.X,
+            startPos2.Y.Scale,startPos2.Y.Offset+d.Y
+        )
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(inp)
+    if inp.UserInputType==Enum.UserInputType.MouseButton1 or inp.UserInputType==Enum.UserInputType.Touch then
+        drag=false
+    end
+end)
+
+-- Start with menu closed.
+mainFrame.Visible=false
+menuOpen=false
+isOpen=false
+
+-- GUI-only script finished.
