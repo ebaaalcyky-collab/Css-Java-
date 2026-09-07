@@ -1,0 +1,27 @@
+{
+  "Icy": {
+    "background": "#071017",
+    "panel": "#0B151D",
+    "accent": "#D8F5FF"
+  },
+  "Dark": {
+    "background": "#090909",
+    "panel": "#111111",
+    "accent": "#E8E8E8"
+  },
+  "Light": {
+    "background": "#E9EEF0",
+    "panel": "#FFFFFF",
+    "accent": "#172027"
+  },
+  "Lime": {
+    "background": "#0A0F0A",
+    "panel": "#101710",
+    "accent": "#B9FF4A"
+  },
+  "Coffee": {
+    "background": "#17100C",
+    "panel": "#211711",
+    "accent": "#E4B98B"
+  }
+}

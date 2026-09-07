@@ -1,0 +1,26 @@
+{
+  "background": {
+    "main": "assets/background/eye.png",
+    "dark": "assets/background/eye_dark.png",
+    "blur": "assets/background/eye_blur.png"
+  },
+  "branding": {
+    "logo": "assets/branding/logo.png",
+    "logo_small": "assets/branding/logo_small.png",
+    "watermark": "assets/branding/watermark.png"
+  },
+  "icons": {
+    "home": "assets/icons/home.png",
+    "movement": "assets/icons/movement.png",
+    "esp": "assets/icons/esp.png",
+    "aim": "assets/icons/aim.png",
+    "other": "assets/icons/other.png",
+    "settings": "assets/icons/settings.png",
+    "config": "assets/icons/config.png"
+  },
+  "decorative": {
+    "noise": "assets/decorative/noise.png",
+    "scanlines": "assets/decorative/scanlines.png",
+    "glow": "assets/decorative/glow.png"
+  }
+}
