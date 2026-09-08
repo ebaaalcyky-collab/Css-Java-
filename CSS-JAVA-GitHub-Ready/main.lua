@@ -1,9 +1,9 @@
--- CSS JAVA GUI — VEHICLE SPEED & VISUALS ESP INTEGRATION 
+-- CSS JAVA GUI — VEHICLE SPEED & VISUALS ESP INTEGRATION (v2.6)
 local Players = game:GetService("Players") 
 local UserInputService = game:GetService("UserInputService") 
 local TweenService = game:GetService("TweenService") 
 local RunService = game:GetService("RunService") 
-local ContextActionService = game:GetService("ContextActionService")
+local HttpService = game:GetService("HttpService")
 
 local player = Players.LocalPlayer 
 local playerGui = player:WaitForChild("PlayerGui")
@@ -248,7 +248,7 @@ local divLine=newFrame(topBar,UDim2.new(1,0,0,1),UDim2.new(0,0,1,0),C.accent,0,5
 newLabel(topBar,"CSS  JAVA",UDim2.new(0,180,1,0),UDim2.new(0.5,-90,0,0),C.text,16,Enum.Font.GothamBlack,5,Enum.TextXAlignment.Center) 
 newLabel(topBar,"●",UDim2.new(0,12,0,14),UDim2.new(0.5,-6,1,-17),C.green,8,Enum.Font.GothamBold,5,Enum.TextXAlignment.Center) 
 newLabel(topBar,"ACTIVE",UDim2.new(0,60,0,14),UDim2.new(0.5,6,1,-17),C.green,8,Enum.Font.GothamBold,5,Enum.TextXAlignment.Left) 
-newLabel(topBar,"v2.5",UDim2.new(0,40,1,0),UDim2.new(1,-90,0,0),C.textFaint,9,Enum.Font.GothamMedium,5,Enum.TextXAlignment.Right)
+newLabel(topBar,"v2.6",UDim2.new(0,40,1,0),UDim2.new(1,-90,0,0),C.textFaint,9,Enum.Font.GothamMedium,5,Enum.TextXAlignment.Right)
 
 local closeBtn=Instance.new("TextButton") 
 closeBtn.Size=UDim2.new(0,30,0,30) 
@@ -335,7 +335,7 @@ if hum then
     end
 end
 
--- Спидхак для авто
+-- Интегрированный спидхак для авто из запроса
 if carSpeedEnabled and hum and hum.SeatPart and hum.SeatPart:IsA("VehicleSeat") then
     local seat = hum.SeatPart
     if seat.Throttle ~= 0 then
@@ -364,12 +364,10 @@ end)
 local espStorage = {}
 
 local function getPlayerRole(p)
-    -- Проверка команд (Team)
     if p.Team and p.Team.Name ~= "" then 
         return p.Team.Name 
     end
     
-    -- Проверка leaderstats (Job, Role, Team)
     local ls = p:FindFirstChild("leaderstats")
     if ls then
         for _, child in ipairs(ls:GetChildren()) do
@@ -380,7 +378,6 @@ local function getPlayerRole(p)
         end
     end
     
-    -- Проверка папок или атрибутов прямо в игроке или персонаже
     if p:GetAttribute("Job") then return tostring(p:GetAttribute("Job")) end
     if p:GetAttribute("Role") then return tostring(p:GetAttribute("Role")) end
     
@@ -473,7 +470,7 @@ Players.PlayerRemoving:Connect(removeESP)
 local function loadHomeTab() 
 clearContent()
 
-newLabel(contentPanel, "Статус модулей и обновлений (v2.5)", UDim2.new(1,-20,0,25), UDim2.new(0,12,0,10), C.text, 13, Enum.Font.GothamBold, 5, Enum.TextXAlignment.Left)
+newLabel(contentPanel, "Статус модулей и обновлений (v2.6)", UDim2.new(1,-20,0,25), UDim2.new(0,12,0,10), C.text, 13, Enum.Font.GothamBold, 5, Enum.TextXAlignment.Left)
 
 local logFrame = newFrame(contentPanel, UDim2.new(1,-24,1,-45), UDim2.new(0,12,0,38), Color3.fromRGB(12,7,25), 0.3, 5)
 corner(logFrame, 8)
@@ -491,8 +488,8 @@ logScroll.ZIndex = 6
 logScroll.Parent = logFrame
 
 local items = {
-    {name = "[ОБНОВЛЕНО] ВХ (ESP) + Роли SDRP", status = "Интеграция профессий (Гражданский, Полиция и др.)", color = C.green},
-    {name = "[АКТИВНО] Спидхак для Авто", status = "Стабильный ход без полетов и багов", color = C.green},
+    {name = "[ОБНОВЛЕНО] Спидхак для Авто", status = "Интегрирован кастомный разгон с AssemblyLinearVelocity", color = C.green},
+    {name = "[АКТИВНО] ВХ (ESP) + Роли SDRP", status = "Профессиональный трекинг игроков", color = C.green},
     {name = "[АКТИВНО] Спидхак (WalkSpeed 30)", status = "Работает стабильно через RenderStepped", color = C.green},
     {name = "[АКТИВНО] Noclip (Сквозь стены)", status = "Работает отлично (CanCollide = false)", color = C.green},
     {name = "[В РАЗРАБОТКЕ] Aimbot / SilentAim", status = "Ожидает интеграции", color = C.yellow},
@@ -661,7 +658,7 @@ end
 -- Status bar 
 local statusBar=newFrame(mainFrame,UDim2.new(1,-160,0,14),UDim2.new(0,152,1,-20),C.bgPanel,0.5,4) 
 corner(statusBar,5) 
-newLabel(statusBar,"CSS JAVA  |  ВХ поддерживает роли SDRP  |  v2.5",UDim2.new(1,-10,1,0),UDim2.new(0,8,0,0),C.textFaint,8,Enum.Font.Gotham,5,Enum.TextXAlignment.Left)
+newLabel(statusBar,"CSS JAVA  |  ВХ поддерживает роли SDRP  |  v2.6",UDim2.new(1,-10,1,0),UDim2.new(0,8,0,0),C.textFaint,8,Enum.Font.Gotham,5,Enum.TextXAlignment.Left)
 
 -- Tabs 
 local tabData={ 
