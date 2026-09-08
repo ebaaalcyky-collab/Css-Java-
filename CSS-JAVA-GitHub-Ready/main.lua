@@ -1,4 +1,4 @@
--- CSS JAVA GUI — FIXED JUMP & STAMINA LOGIC
+-- CSS JAVA GUI — VEHICLE SPEED & VISUALS ESP INTEGRATION
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
@@ -311,34 +311,21 @@ local function clearContent()
 end
 
 -- =========================================================================
--- ЛОГИКА ФУНКЦИЙ ЧИТА (ИСПРАВЛЕННЫЙ ПРЫЖОК И СТАМИНА)
+-- ЛОГИКА ФУНКЦИЙ ЧИТА (ОБНОВЛЕННЫЕ МОДУЛИ)
 -- =========================================================================
 local speedEnabled = false
-local staminaEnabled = false
-local highJumpEnabled = false
+local carSpeedEnabled = false
+local carSpeedMultiplier = 1.6
+local espEnabled = false
 local noclipEnabled = false
 
--- Улучшенный прыжок через отслеживание клавиши пробела и импульс
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if not highJumpEnabled or gameProcessed then return end
-    if input.KeyCode == Enum.KeyCode.Space or input.UserInputType == Enum.UserInputType.Touch then
-        local char = player.Character
-        if char then
-            local root = char:FindFirstChild("HumanoidRootPart")
-            local hum = char:FindFirstChildOfClass("Humanoid")
-            if root and hum and hum:GetState() ~= Enum.HumanoidStateType.Freefall then
-                root.AssemblyLinearVelocity = Vector3.new(root.AssemblyLinearVelocity.X, 60, root.AssemblyLinearVelocity.Z)
-            end
-        end
-    end
-end)
-
+-- 1. Спидхак для Авто и Персонажа + Noclip
 RunService.RenderStepped:Connect(function()
     local char = player.Character
     if not char then return end
     local hum = char:FindFirstChildOfClass("Humanoid")
 
-    -- Спидхак
+    -- Спидхак персонажа
     if hum then
         if speedEnabled then
             hum.WalkSpeed = 30
@@ -347,31 +334,17 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
-    -- Расширенная стамина (ищем во всех возможных хранилищах)
-    if staminaEnabled then
-        pcall(function()
-            -- 1. В персонаже и его подпапках
-            for _, v in pairs(char:GetDescendants()) do
-                if (v:IsA("NumberValue") or v:IsA("IntValue")) then
-                    local n = v.Name:lower()
-                    if n:find("stamina") or n:find("energy") or n:find("fatigue") or n:find("power") or n:find("mana") then
-                        v.Value = v.MaxValue or 100
-                    end
-                end
-            end
-            -- 2. В объекте игрока (Player)
-            for _, v in pairs(player:GetDescendants()) do
-                if (v:IsA("NumberValue") or v:IsA("IntValue")) then
-                    local n = v.Name:lower()
-                    if n:find("stamina") or n:find("energy") or n:find("fatigue") then
-                        v.Value = 100
-                    end
-                end
-            end
-        end)
+    -- Спидхак для авто
+    if carSpeedEnabled and hum and hum.SeatPart and hum.SeatPart:IsA("VehicleSeat") then
+        local seat = hum.SeatPart
+        if seat.Throttle ~= 0 then
+            local vehicle = seat:FindFirstAncestorOfClass("Model") or seat.Parent
+            local primaryPart = vehicle and vehicle.PrimaryPart or seat
+            primaryPart.AssemblyLinearVelocity = primaryPart.AssemblyLinearVelocity + (seat.CFrame.LookVector * (seat.Throttle * carSpeedMultiplier))
+        end
     end
 
-    -- Noclip (отлично работает)
+    -- Noclip
     if noclipEnabled then
         for _, part in pairs(char:GetDescendants()) do
             if part:IsA("BasePart") then
@@ -380,6 +353,74 @@ RunService.RenderStepped:Connect(function()
         end
     end
 end)
+
+-- 2. Логика ВХ (ESP)
+local espStorage = {}
+
+local function removeESP(p)
+    if espStorage[p] then
+        if espStorage[p].hl then espStorage[p].hl:Destroy() end
+        if espStorage[p].billboard then espStorage[p].billboard:Destroy() end
+        espStorage[p] = nil
+    end
+end
+
+local function applyESP(p)
+    if p == player or not p.Character then return end
+    local char = p.Character
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    if not espStorage[p] then
+        local hl = Instance.new("Highlight")
+        hl.Name = "CSS_Java_ESP"
+        hl.FillColor = C.accent
+        hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+        hl.FillTransparency = 0.4
+        hl.OutlineTransparency = 0
+        hl.Parent = char
+
+        local bb = Instance.new("BillboardGui")
+        bb.Name = "CSS_Tag"
+        bb.Size = UDim2.new(0, 140, 0, 30)
+        bb.StudsOffset = Vector3.new(0, 3.2, 0)
+        bb.AlwaysOnTop = true
+        bb.Adornee = hrp
+
+        local txt = Instance.new("TextLabel")
+        txt.Size = UDim2.new(1, 0, 1, 0)
+        txt.BackgroundTransparency = 1
+        txt.TextColor3 = Color3.fromRGB(255, 230, 255)
+        txt.TextStrokeTransparency = 0.2
+        txt.Font = Enum.Font.GothamBold
+        txt.TextSize = 11
+        txt.Parent = bb
+        bb.Parent = hrp
+
+        espStorage[p] = {hl = hl, billboard = bb, label = txt}
+    end
+
+    if espStorage[p] and espStorage[p].label and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        local dist = math.floor((player.Character.HumanoidRootPart.Position - hrp.Position).Magnitude)
+        espStorage[p].label.Text = p.DisplayName .. " [" .. dist .. "m]"
+    end
+end
+
+RunService.Heartbeat:Connect(function()
+    if espEnabled then
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= player and p.Character then
+                applyESP(p)
+            end
+        end
+    else
+        for p, _ in pairs(espStorage) do
+            removeESP(p)
+        end
+    end
+end)
+
+Players.PlayerRemoving:Connect(removeESP)
 
 -- Вкладка "Главная" с живым отчетом об изменениях
 local function loadHomeTab()
@@ -403,12 +444,12 @@ local function loadHomeTab()
     logScroll.Parent = logFrame
 
     local items = {
-        {name = "[ОБНОВЛЕНО] Высокий прыжок", status = "Переведен на импульс скорости (Velocity Y)", color = C.green},
-        {name = "[ОБНОВЛЕНО] Бесконечная стамина", status = "Поиск значений расширен по всему Player/Char", color = C.green},
+        {name = "[АКТИВНО] Неоновый ВХ (ESP)", status = "Перенесен во вкладку Visuals (ники, дистанция)", color = C.green},
+        {name = "[АКТИВНО] Спидхак для Авто", status = "С регулировкой мощности (+/-) в Misc", color = C.green},
         {name = "[АКТИВНО] Спидхак (WalkSpeed 30)", status = "Работает стабильно через RenderStepped", color = C.green},
         {name = "[АКТИВНО] Noclip (Сквозь стены)", status = "Работает отлично (CanCollide = false)", color = C.green},
         {name = "[В РАЗРАБОТКЕ] Aimbot / SilentAim", status = "Ожидает интеграции", color = C.yellow},
-        {name = "[В РАЗРАБОТКЕ] ESP / Visuals", status = "В процессе оптимизации", color = C.yellow},
+        {name = "[В РАЗРАБОТКЕ] Skins / Configs", status = "В процессе оптимизации", color = C.yellow},
     }
 
     local y = 4
@@ -425,23 +466,60 @@ local function loadHomeTab()
     logScroll.CanvasSize = UDim2.new(0,0,0,y+10)
 end
 
+-- Вкладка "Visuals" с ВХ (ESP)
+local function loadVisualsTab()
+    clearContent()
+    
+    newLabel(contentPanel, "Визуальные эффекты (Visuals)", UDim2.new(1,-20,0,25), UDim2.new(0,12,0,10), C.text, 13, Enum.Font.GothamBold, 5, Enum.TextXAlignment.Left)
+    
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0, 230, 0, 32)
+    btn.Position = UDim2.new(0, 12, 0, 42)
+    btn.BackgroundColor3 = espEnabled and C.accent or Color3.fromRGB(20, 12, 40)
+    btn.Text = "👁️ Неоновый ВХ (ESP)" .. (espEnabled and " [ON]" or " [OFF]")
+    btn.TextColor3 = C.text
+    btn.TextSize = 11
+    btn.Font = Enum.Font.GothamMedium
+    btn.ZIndex = 5
+    btn.Parent = contentPanel
+    corner(btn, 8)
+    stroke(btn, C.accentDim, 1)
+
+    btn.MouseButton1Click:Connect(function()
+        espEnabled = not espEnabled
+        btn.BackgroundColor3 = espEnabled and C.accent or Color3.fromRGB(20, 12, 40)
+        btn.Text = "👁️ Неоновый ВХ (ESP)" .. (espEnabled and " [ON]" or " [OFF]")
+    end)
+end
+
 -- Вкладка "Misc" с кнопками управления
 local function loadMiscTab()
     clearContent()
     
-    newLabel(contentPanel, "Управление функциями (Misc)", UDim2.new(1,-20,0,25), UDim2.new(0,12,0,10), C.text, 13, Enum.Font.GothamBold, 5, Enum.TextXAlignment.Left)
+    local miscScroll = Instance.new("ScrollingFrame")
+    miscScroll.Size = UDim2.new(1, -8, 1, -8)
+    miscScroll.Position = UDim2.new(0, 4, 0, 4)
+    miscScroll.BackgroundTransparency = 1
+    miscScroll.BorderSizePixel = 0
+    miscScroll.CanvasSize = UDim2.new(0, 0, 0, 200)
+    miscScroll.ScrollBarThickness = 2
+    miscScroll.ScrollBarImageColor3 = C.accent
+    miscScroll.ZIndex = 5
+    miscScroll.Parent = contentPanel
+    
+    newLabel(miscScroll, "Управление функциями (Misc)", UDim2.new(1,-20,0,25), UDim2.new(0,8,0,5), C.text, 13, Enum.Font.GothamBold, 6, Enum.TextXAlignment.Left)
     
     local function createToggle(name, yPos, getState, setState)
         local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(0, 220, 0, 32)
-        btn.Position = UDim2.new(0, 12, 0, yPos)
+        btn.Size = UDim2.new(0, 230, 0, 32)
+        btn.Position = UDim2.new(0, 8, 0, yPos)
         btn.BackgroundColor3 = getState() and C.accent or Color3.fromRGB(20, 12, 40)
         btn.Text = name .. (getState() and " [ON]" or " [OFF]")
         btn.TextColor3 = C.text
         btn.TextSize = 11
         btn.Font = Enum.Font.GothamMedium
-        btn.ZIndex = 5
-        btn.Parent = contentPanel
+        btn.ZIndex = 6
+        btn.Parent = miscScroll
         corner(btn, 8)
         stroke(btn, C.accentDim, 1)
 
@@ -452,10 +530,59 @@ local function loadMiscTab()
         end)
     end
 
-    createToggle("Спидхак (30)", 42, function() return speedEnabled end, function(v) speedEnabled = v end)
-    createToggle("Бесконечная стамина", 80, function() return staminaEnabled end, function(v) staminaEnabled = v end)
-    createToggle("Высокий прыжок", 118, function() return highJumpEnabled end, function(v) highJumpEnabled = v end)
-    createToggle("Noclip (Сквозь стены)", 156, function() return noclipEnabled end, function(v) noclipEnabled = v end)
+    createToggle("Спидхак Персонажа (30)", 35, function() return speedEnabled end, function(v) speedEnabled = v end)
+    createToggle("🚗 Спидхак для Авто", 72, function() return carSpeedEnabled end, function(v) carSpeedEnabled = v end)
+
+    -- Настройка мощности авто (+ / -)
+    local carSpeedFrame = newFrame(miscScroll, UDim2.new(0, 230, 0, 32), UDim2.new(0, 8, 0, 109), Color3.fromRGB(16, 10, 34), 0, 6)
+    corner(carSpeedFrame, 8)
+    stroke(carSpeedFrame, C.accentDim, 1)
+
+    local valLabel = newLabel(carSpeedFrame, "Мощность авто: " .. string.format("%.1f", carSpeedMultiplier), UDim2.new(1, -80, 1, 0), UDim2.new(0, 8, 0, 0), C.text, 10, Enum.Font.GothamMedium, 7, Enum.TextXAlignment.Left)
+
+    local minusBtn = Instance.new("TextButton")
+    minusBtn.Size = UDim2.new(0, 30, 0, 22)
+    minusBtn.Position = UDim2.new(1, -68, 0.5, -11)
+    minusBtn.BackgroundColor3 = Color3.fromRGB(26, 16, 52)
+    minusBtn.Text = "-"
+    minusBtn.TextColor3 = C.text
+    minusBtn.Font = Enum.Font.GothamBold
+    minusBtn.TextSize = 14
+    minusBtn.ZIndex = 7
+    minusBtn.Parent = carSpeedFrame
+    corner(minusBtn, 6)
+    stroke(minusBtn, C.accentDim, 1)
+
+    local plusBtn = Instance.new("TextButton")
+    plusBtn.Size = UDim2.new(0, 30, 0, 22)
+    plusBtn.Position = UDim2.new(1, -34, 0.5, -11)
+    plusBtn.BackgroundColor3 = Color3.fromRGB(26, 16, 52)
+    plusBtn.Text = "+"
+    plusBtn.TextColor3 = C.text
+    plusBtn.Font = Enum.Font.GothamBold
+    plusBtn.TextSize = 14
+    plusBtn.ZIndex = 7
+    plusBtn.Parent = carSpeedFrame
+    corner(plusBtn, 6)
+    stroke(plusBtn, C.accentDim, 1)
+
+    minusBtn.MouseButton1Click:Connect(function()
+        if carSpeedMultiplier > 0.2 then
+            carSpeedMultiplier = math.max(0.2, carSpeedMultiplier - 0.4)
+            valLabel.Text = "Мощность авто: " .. string.format("%.1f", carSpeedMultiplier)
+        end
+    end)
+
+    plusBtn.MouseButton1Click:Connect(function()
+        if carSpeedMultiplier < 10.0 then
+            carSpeedMultiplier = math.min(10.0, carSpeedMultiplier + 0.4)
+            valLabel.Text = "Мощность авто: " .. string.format("%.1f", carSpeedMultiplier)
+        end
+    end)
+
+    createToggle("Noclip (Сквозь стены)", 146, function() return noclipEnabled end, function(v) noclipEnabled = v end)
+    
+    miscScroll.CanvasSize = UDim2.new(0, 0, 0, 190)
 end
 
 -- Заглушка для остальных вкладок
@@ -469,13 +596,13 @@ end
 -- Status bar
 local statusBar=newFrame(mainFrame,UDim2.new(1,-160,0,14),UDim2.new(0,152,1,-20),C.bgPanel,0.5,4)
 corner(statusBar,5)
-newLabel(statusBar,"CSS JAVA  |  Прыжок и стамина пропатчены  |  v2.3",UDim2.new(1,-10,1,0),UDim2.new(0,8,0,0),C.textFaint,8,Enum.Font.Gotham,5,Enum.TextXAlignment.Left)
+newLabel(statusBar,"CSS JAVA  |  ВХ перенесен в Visuals  |  v2.3",UDim2.new(1,-10,1,0),UDim2.new(0,8,0,0),C.textFaint,8,Enum.Font.Gotham,5,Enum.TextXAlignment.Left)
 
 -- Tabs
 local tabData={
     {name="Главная",icon="⌂",desc="Главный раздел", isHome=true},
     {name="Aimbot",icon="⊕",desc="Настройки точного прицела"},
-    {name="Visuals",icon="◉",desc="Визуальные эффекты и ESP"},
+    {name="Visuals",icon="◉",desc="Визуальные эффекты и ESP", isVisuals=true},
     {name="Players",icon="⊞",desc="Список игроков на сервере"},
     {name="Misc",icon="≡",desc="Дополнительные функции", isMisc=true},
     {name="Skins",icon="◈",desc="Менеджер скинов и оружия"},
@@ -539,6 +666,8 @@ for idx,data in ipairs(tabData) do
 
         if data.isHome then
             loadHomeTab()
+        elseif data.isVisuals then
+            loadVisualsTab()
         elseif data.isMisc then
             loadMiscTab()
         else
@@ -598,4 +727,3 @@ UserInputService.InputEnded:Connect(function(inp)
 end)
 
 mainFrame.Visible=false
-
